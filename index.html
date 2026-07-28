@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0c0c0d" />
+  <title>Barber Shop Erick Garcia — Agende seu horário</title>
+  <!-- VERSÃO SINGLE-FILE AUTOCONTIDA (gerada de CODIGO-FONTE-PROTOTIPO). Abrir direto do Drive. -->
+  <meta name="description" content="Barber Shop Erick Garcia (Sarapuí-SP): agende seu corte online, sem login. Loja, curso de barbeiro e atendimento em um só lugar." />
+
+  <!-- Google Fonts: Cormorant Garamond (display) + Inter (UI). Só pesos usados.
+       FASE 2: se a marca definir outra tipografia, trocar aqui e nos tokens. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- CSS por responsabilidade (ordem: tokens -> reset -> base -> layout -> components -> animations) -->
+  <style>
+/* ===== tokens.css ===== */
+/* =========================================================
+   DESIGN TOKENS — BARBER SHOP ERICK GARCIA
+   Fonte ÚNICA de decisões visuais (paleta, tipografia,
+   espaçamento, motion). Nada de valor "cru" nos outros CSS.
+
+   >>> PEDIDO DO DONO: cores PRETO e DOURADO <<<
+   TEMA ESCURO (preto) com acentos DOURADOS — clima de
+   barbearia premium/clássica. Todo texto sobre preto usa
+   branco-quente ou dourado com contraste >= AA (4.5:1).
+
+   FASE 2: a marca real (logo, fotos, tom exato do dourado)
+   ainda não existe. Estes valores são um dourado premium
+   genérico. Ao chegar o logo real, ajustar --gold* aqui e
+   nada mais precisa mudar (tokens = ponto único).
+   ========================================================= */
+
+:root {
+  /* --- Cor: base / superfícies (tema PRETO) --- */
+  --color-bg: #0c0c0d;            /* preto de fundo (não #000 puro: menos fadiga) */
+  --color-bg-elevated: #141416;   /* faixas/seções elevadas */
+  --color-surface: #1a1a1d;       /* cards */
+  --color-surface-soft: #212125;  /* card hover / preenchimento suave */
+  --color-surface-strong: #101012;
+  --color-border: #2b2b30;
+  --color-border-soft: #232327;
+
+  /* --- Cor: DOURADO (marca / ação / destaque) --- */
+  --color-gold: #d4af37;          /* dourado principal (CTA, preços, destaques) */
+  --color-gold-bright: #e6c260;   /* brilho/hover */
+  --color-gold-deep: #a67c1e;     /* sombra/pressed */
+  --color-gold-soft: rgba(212, 175, 55, 0.12);
+  --color-gold-tint: rgba(212, 175, 55, 0.06);
+
+  /* --- Cor: texto (sobre preto; todos >= AA 4.5:1) --- */
+  --color-text-primary: #f5f1e8;   /* branco-quente (~16:1 sobre --color-bg) */
+  --color-text-secondary: #c7c2b6; /* ~10:1 */
+  --color-text-muted: #8f8b82;     /* ~4.7:1 sobre --color-bg (uso em textos pequenos no limite) */
+  --color-text-muted-soft: #a8a399; /* muted p/ texto pequeno SOBRE surface/elevated (>=6:1) */
+  --color-black: #0c0c0d;
+  --color-white: #ffffff;
+
+  /* --- Superfícies compostas / mídia (tokenizadas p/ o rebrand da Fase 2) --- */
+  --color-header-bg: rgba(12, 12, 13, 0.86); /* header sticky translúcido */
+  --color-photo-tag-bg: rgba(0, 0, 0, 0.5);  /* etiqueta "foto de exemplo" */
+  --grad-media-shop: linear-gradient(160deg, #201d16, #141210);   /* fundo placeholder de produto */
+  --grad-media-course: linear-gradient(150deg, #24201a, #100e0c); /* fundo placeholder do curso */
+
+  /* --- Cor: semânticos --- */
+  --color-danger: #e05a4d;         /* cancelar/erro (>=4.5:1 sobre preto) */
+  --color-danger-soft: rgba(224, 90, 77, 0.14);
+  --color-success: #4caf6d;        /* confirmado */
+  --color-success-soft: rgba(76, 175, 109, 0.16);
+  --color-whats: #25d366;          /* verde WhatsApp (uso decorativo/ícone) */
+
+  /* --- Tipografia ---
+     Cormorant Garamond: display/headings (clássico, elegante — barbearia).
+     Inter: corpo/UI (legibilidade alta em mobile).
+     Ambas via Google Fonts (CDN) — ver <link> no index.html.
+     FASE 2: se a marca definir outra fonte, trocar aqui + no <link>. */
+  --font-display: "Cormorant Garamond", "Georgia", serif;
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --fs-xs: 0.78rem;
+  --fs-sm: 0.9rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.15rem;
+  --fs-xl: 1.4rem;
+  --fs-2xl: clamp(1.6rem, 1.25rem + 1.6vw, 2.4rem);
+  --fs-3xl: clamp(2rem, 1.4rem + 2.8vw, 3.2rem);
+  --fs-hero: clamp(2.6rem, 1.8rem + 4vw, 4.6rem);
+
+  --lh-tight: 1.08;
+  --lh-snug: 1.32;
+  --lh-normal: 1.6;
+
+  --tracking-wide: 0.14em;
+  --tracking-wider: 0.22em;
+
+  /* --- Espaçamento (escala 4px) --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+
+  /* --- Layout --- */
+  --container-max: 1120px;
+  --container-pad: clamp(1.1rem, 4vw, 2.5rem);
+  --header-h: 62px;
+
+  /* --- Efeitos --- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 999px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 160ms;
+  --duration-base: 320ms;
+  --duration-slow: 620ms;
+
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 14px 34px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 28px 60px rgba(0, 0, 0, 0.6);
+  --shadow-gold-glow: 0 12px 30px rgba(212, 175, 55, 0.22);
+
+  /* Gradiente de marca (preto -> preto quente, com faísca dourada no topo) */
+  --grad-hero: radial-gradient(120% 90% at 50% 0%, rgba(212, 175, 55, 0.16) 0%, rgba(212, 175, 55, 0) 46%),
+               linear-gradient(180deg, #151412 0%, var(--color-bg) 60%);
+  --grad-gold: linear-gradient(135deg, var(--color-gold-bright) 0%, var(--color-gold) 45%, var(--color-gold-deep) 100%);
+}
+
+
+/* ===== reset.css ===== */
+/* =========================================================
+   RESET — normalização enxuta (mobile-first)
+   ========================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+
+* { margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+body {
+  min-height: 100vh;
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img, picture, svg, video { display: block; max-width: 100%; }
+
+input, button, textarea, select { font: inherit; color: inherit; }
+
+button { background: none; border: none; cursor: pointer; }
+
+a { color: inherit; text-decoration: none; }
+
+ul, ol { list-style: none; }
+
+h1, h2, h3, h4 { line-height: var(--lh-tight); font-weight: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Respeita quem pediu menos animação */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+
+/* ===== base.css ===== */
+/* =========================================================
+   BASE — tipografia de corpo, fundo e utilitários de texto
+   ========================================================= */
+body {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--container-pad);
+}
+
+/* Títulos display (serifado elegante) */
+.display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-2xl);
+  color: var(--color-text-primary);
+}
+
+.section-lead {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-lg);
+  max-width: 60ch;
+  margin-top: var(--space-3);
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.gold-text { color: var(--color-gold); }
+.muted { color: var(--color-text-muted); }
+
+/* Divisor decorativo dourado */
+.rule-gold {
+  width: 54px; height: 2px;
+  background: var(--grad-gold);
+  border-radius: var(--radius-full);
+  margin-top: var(--space-4);
+}
+
+.section-head { margin-bottom: var(--space-8); }
+.section-head--center { text-align: center; }
+.section-head--center .rule-gold { margin-inline: auto; }
+
+
+/* ===== layout.css ===== */
+/* =========================================================
+   LAYOUT — header/nav, views (abas), hero, grids, footer
+   Mobile-first: o cliente acessa pelo celular.
+   ========================================================= */
+
+/* ---------- HEADER / NAV (abas) ---------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--color-header-bg);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.header__inner {
+  min-height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block: var(--space-2);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.32rem;
+  letter-spacing: 0.03em;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+.logo__mark {
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-gold);
+  color: var(--color-gold);
+}
+.logo__mark svg { width: 18px; height: 18px; }
+.logo__accent { color: var(--color-gold); }
+.logo small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.52rem;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* Abas de navegação (Agendar / Loja / Curso / Dono) */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  position: relative;
+  white-space: nowrap;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+.tab:hover { color: var(--color-text-primary); }
+.tab.is-active {
+  color: var(--color-black);
+  background: var(--grad-gold);
+}
+.tab--owner { color: var(--color-text-muted); }
+.tab--owner.is-active { color: var(--color-black); }
+
+/* ---------- VIEWS (uma aba visível por vez) ---------- */
+.view { display: none; }
+.view.is-active { display: block; animation: view-in var(--duration-base) var(--ease-out) both; }
+
+.section { padding-block: var(--space-12); }
+.section--tight { padding-block: var(--space-8); }
+
+/* ---------- HERO (topo do Agendamento) ---------- */
+.hero {
+  position: relative;
+  padding-block: var(--space-16) var(--space-12);
+  background: var(--grad-hero);
+  border-bottom: 1px solid var(--color-border-soft);
+  text-align: center;
+}
+.hero__eyebrow { margin-bottom: var(--space-4); }
+.hero__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-hero);
+  color: var(--color-text-primary);
+}
+.hero__title span { display: block; }
+.hero__title .gold-text { color: var(--color-gold); }
+.hero__subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-lg);
+  max-width: 46ch;
+  margin: var(--space-5) auto 0;
+}
+.hero__actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-8);
+}
+
+/* ---------- GRIDS ---------- */
+.grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 560px) { .grid--2 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 820px) {
+  .grid--3 { grid-template-columns: repeat(3, 1fr); }
+  .grid--4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Grade de horários */
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--space-2);
+}
+
+/* ---------- FOOTER ---------- */
+.site-footer {
+  border-top: 1px solid var(--color-border-soft);
+  background: var(--color-bg-elevated);
+  padding-block: var(--space-10) var(--space-8);
+  margin-top: var(--space-16);
+}
+.footer__inner {
+  display: grid;
+  gap: var(--space-8);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 760px) {
+  .footer__inner { grid-template-columns: 1.4fr 1fr 1fr; }
+}
+.footer__heading {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: var(--space-3);
+}
+.footer__tagline { color: var(--color-text-secondary); margin-top: var(--space-3); max-width: 40ch; }
+.footer__list li { margin-bottom: var(--space-2); color: var(--color-text-secondary); }
+.footer__bottom {
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-soft);
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+}
+.footer__note { font-size: var(--fs-xs); max-width: 60ch; }
+
+
+/* ===== components.css ===== */
+/* =========================================================
+   COMPONENTS — botões, chips, cards, form, horários,
+   modal, tabela ADM, toast, badges.
+   ========================================================= */
+
+/* ---------- BOTÕES ---------- */
+.btn {
+  --btn-bg: var(--color-surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.72rem 1.3rem;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--btn-bg);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  transition: transform var(--duration-fast) var(--ease-out),
+              background var(--duration-fast), box-shadow var(--duration-fast), opacity var(--duration-fast);
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn svg { width: 18px; height: 18px; }
+
+.btn--primary {
+  background: var(--grad-gold);
+  color: var(--color-black);
+  border-color: transparent;
+  box-shadow: var(--shadow-gold-glow);
+}
+.btn--primary:hover { box-shadow: 0 16px 38px rgba(212, 175, 55, 0.32); }
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+.btn--ghost:hover { background: var(--color-gold-soft); }
+
+.btn--danger {
+  background: transparent;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.btn--danger:hover { background: var(--color-danger-soft); }
+
+.btn--large { padding: 0.9rem 1.7rem; font-size: var(--fs-base); }
+.btn--small { padding: 0.5rem 0.95rem; font-size: var(--fs-xs); }
+.btn--block { width: 100%; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ---------- CHIPS de seleção (serviço / cabeleireiro / pagamento) ---------- */
+.choice-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.62rem 1rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  transition: border-color var(--duration-fast), color var(--duration-fast), background var(--duration-fast);
+}
+.choice:hover { border-color: var(--color-gold-deep); color: var(--color-text-primary); }
+.choice.is-selected {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  background: var(--color-gold-soft);
+}
+.choice__meta { color: var(--color-text-muted-soft); font-size: var(--fs-xs); }
+.choice.is-selected .choice__meta { color: var(--color-gold-bright); }
+
+/* ---------- CARDS ---------- */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+.card--soft { background: var(--color-bg-elevated); }
+
+/* Bloco de passo do agendamento */
+.step { margin-bottom: var(--space-8); }
+.step__head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: var(--space-4); }
+.step__num {
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--color-gold-soft);
+  color: var(--color-gold);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.step__title { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 600; }
+
+/* ---------- FORM ---------- */
+.field { margin-bottom: var(--space-4); }
+.field__label {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+.req { color: var(--color-gold); }
+
+.control {
+  width: 100%;
+  padding: 0.78rem 1rem;
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.control::placeholder { color: var(--color-text-muted); }
+.control:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px var(--color-gold-soft);
+}
+.field__error {
+  display: block;
+  min-height: 1.1em;
+  margin-top: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--color-danger);
+}
+.field--invalid .control { border-color: var(--color-danger); }
+
+/* ---------- HORÁRIOS (grade de agendamento) ---------- */
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.6rem 0.4rem;
+  min-height: 58px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  transition: border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-fast);
+}
+.slot__time { font-variant-numeric: tabular-nums; }
+.slot:not(.slot--taken):hover { border-color: var(--color-gold); transform: translateY(-1px); }
+.slot.is-selected {
+  border-color: var(--color-gold);
+  background: var(--color-gold-soft);
+  color: var(--color-gold);
+}
+
+/* Horário OCUPADO: o "risco" sobre o horário + primeiro nome embaixo.
+   Pedido literal do dono: "10:00 riscado e embaixo João". */
+.slot--taken {
+  cursor: not-allowed;
+  background: var(--color-surface-strong);
+  border-style: dashed;
+  border-color: var(--color-border-soft);
+  color: var(--color-text-muted);
+}
+.slot--taken .slot__time { text-decoration: line-through; text-decoration-color: var(--color-gold); }
+.slot__name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--color-gold);
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slots-empty { color: var(--color-text-muted); font-size: var(--fs-sm); grid-column: 1 / -1; }
+
+/* Resumo de seleção */
+.summary {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  border: 1px dashed var(--color-border);
+}
+.summary__row { display: flex; justify-content: space-between; gap: var(--space-3); padding: 0.28rem 0; font-size: var(--fs-sm); }
+.summary__row span:first-child { color: var(--color-text-muted); }
+.summary__row span:last-child { color: var(--color-text-primary); font-weight: 600; text-align: right; }
+
+/* Mensagem de sucesso do agendamento */
+.booking-done {
+  display: none;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--color-success-soft);
+  border: 1px solid var(--color-success);
+  text-align: center;
+}
+.booking-done.is-visible { display: block; animation: view-in var(--duration-base) var(--ease-out) both; }
+.booking-done__icon {
+  width: 52px; height: 52px; margin: 0 auto var(--space-3);
+  display: grid; place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--color-success); color: var(--color-black);
+}
+.booking-done__title { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 600; }
+
+/* ---------- BADGES ---------- */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.badge--gold { background: var(--color-gold-soft); color: var(--color-gold); border: 1px solid var(--color-gold-deep); }
+
+/* ---------- PRODUTO (loja) ---------- */
+.product-card { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.product-card__media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: var(--grad-media-shop);
+  display: grid; place-items: center;
+  color: var(--color-gold-deep);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.product-card__media svg { width: 46px; height: 46px; opacity: 0.55; }
+.photo-tag {
+  position: absolute; bottom: 8px; left: 8px;
+  font-size: 0.62rem; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--color-text-secondary); background: var(--color-photo-tag-bg);
+  padding: 2px 7px; border-radius: var(--radius-full);
+}
+.product-card__body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); flex: 1; }
+.product-card__cat { font-size: var(--fs-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--color-text-muted); }
+.product-card__name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
+.product-card__desc { font-size: var(--fs-sm); color: var(--color-text-secondary); flex: 1; }
+.product-card__price { font-size: var(--fs-xl); font-weight: 700; color: var(--color-gold); font-family: var(--font-display); }
+
+/* ---------- CURSO ---------- */
+.course-hero {
+  display: grid; gap: var(--space-8);
+  grid-template-columns: 1fr;
+  align-items: center;
+}
+@media (min-width: 860px) { .course-hero { grid-template-columns: 1.1fr 0.9fr; } }
+.course-visual {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-lg);
+  background: var(--grad-media-course);
+  border: 1px solid var(--color-border-soft);
+  display: grid; place-items: center;
+  color: var(--color-gold-deep);
+  position: relative;
+}
+.course-visual svg { width: 72px; height: 72px; opacity: 0.5; }
+.course-price-box {
+  margin-top: var(--space-5);
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+}
+.course-price-box__value { font-family: var(--font-display); font-size: var(--fs-3xl); font-weight: 700; color: var(--color-gold); }
+.module {
+  display: flex; gap: var(--space-4); align-items: flex-start;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.module:last-child { border-bottom: none; }
+.module__num {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 38px; height: 38px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-gold-deep);
+  color: var(--color-gold);
+  font-family: var(--font-display); font-weight: 700;
+}
+.module__title { font-weight: 600; color: var(--color-text-primary); }
+.module__text { font-size: var(--fs-sm); color: var(--color-text-secondary); margin-top: 2px; }
+
+/* ---------- ÁREA DO DONO (ADM) ---------- */
+.lock {
+  max-width: 380px; margin: var(--space-8) auto;
+  text-align: center;
+}
+.lock__icon {
+  width: 58px; height: 58px; margin: 0 auto var(--space-4);
+  display: grid; place-items: center; border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-gold); color: var(--color-gold);
+}
+.admin-panel { display: none; }
+.admin-panel.is-visible { display: block; }
+
+.admin-toolbar {
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  align-items: center; justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+.admin-stats { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.stat {
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+}
+.stat__value { font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 700; color: var(--color-gold); line-height: 1; }
+.stat__label { font-size: var(--fs-xs); color: var(--color-text-muted-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Lista de agendamentos (cards no mobile, tabela-like no desktop) */
+.appts { display: flex; flex-direction: column; gap: var(--space-3); }
+.appt {
+  display: grid;
+  gap: var(--space-2) var(--space-4);
+  grid-template-columns: 1fr;
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+}
+@media (min-width: 720px) {
+  .appt { grid-template-columns: 84px 1.4fr 1fr auto; align-items: center; }
+}
+.appt__when { font-family: var(--font-display); font-weight: 700; color: var(--color-gold); }
+.appt__when small { display: block; font-family: var(--font-sans); font-weight: 500; font-size: var(--fs-xs); color: var(--color-text-muted); }
+.appt__who .appt__name { font-weight: 600; }
+.appt__who .appt__phone { font-size: var(--fs-sm); color: var(--color-text-secondary); }
+.appt__detail { font-size: var(--fs-sm); color: var(--color-text-secondary); }
+.appt__detail strong { color: var(--color-text-primary); font-weight: 600; }
+.appt__field-label { font-size: var(--fs-xs); color: var(--color-text-muted-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+.appt__actions { display: flex; gap: var(--space-2); }
+.appts-empty {
+  padding: var(--space-10); text-align: center;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border); border-radius: var(--radius-lg);
+}
+
+.privacy-note {
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-gold-tint);
+  border: 1px solid var(--color-border-soft);
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+.privacy-note svg { flex: 0 0 auto; width: 20px; height: 20px; color: var(--color-gold); }
+
+/* ---------- TOAST ---------- */
+.toast {
+  position: fixed;
+  left: 50%; bottom: 22px;
+  transform: translateX(-50%) translateY(140%);
+  z-index: 80;
+  max-width: 88vw;
+  padding: 0.8rem 1.2rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 1px solid var(--color-gold-deep);
+  color: var(--color-text-primary);
+  font-size: var(--fs-sm); font-weight: 600;
+  box-shadow: var(--shadow-md);
+  white-space: normal;
+  transition: transform var(--duration-base) var(--ease-out), opacity var(--duration-base);
+  opacity: 0;
+  pointer-events: none;
+}
+.toast.is-visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+
+/* ===== animations.css ===== */
+/* =========================================================
+   ANIMATIONS — enxutas (respeitam prefers-reduced-motion via reset)
+   ========================================================= */
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scroll-reveal opcional (usado por elementos .reveal) */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out); }
+.reveal.is-visible { opacity: 1; transform: none; }
+.reveal--delay-1 { transition-delay: 90ms; }
+.reveal--delay-2 { transition-delay: 180ms; }
+.reveal--delay-3 { transition-delay: 270ms; }
+
+  </style>
+
+  <!-- Sem JS: os .reveal ficam visíveis. -->
+  <noscript><style>.reveal{opacity:1!important;transform:none!important;}</style></noscript>
+</head>
+<body>
+
+  <!-- ===================== HEADER / NAV ===================== -->
+  <header class="site-header">
+    <div class="container header__inner">
+      <!-- PLACEHOLDER: logo textual em preto+dourado. FASE 2: trocar por
+           assets/img/logo-erick-garcia.png quando o logo oficial chegar. -->
+      <a href="#agendar" class="logo" data-target="agendar" aria-label="Barber Shop Erick Garcia — início">
+        <span class="logo__mark" aria-hidden="true">
+          <!-- ícone de navalha/tesoura -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+            <path d="M8.5 8.5 20 20M8.5 15.5 20 4" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span>Erick Garcia<span class="logo__accent">.</span><small>Barber Shop</small></span>
+      </a>
+
+      <nav class="tabs" aria-label="Navegação principal">
+        <button class="tab is-active" data-target="agendar" aria-current="page">Agendar</button>
+        <button class="tab" data-target="loja" aria-current="false">Loja</button>
+        <button class="tab" data-target="curso" aria-current="false">Curso</button>
+        <button class="tab tab--owner" data-target="dono" aria-current="false">Área do Dono</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============================================================
+         VIEW: AGENDAMENTO (SEM login)
+         ============================================================ -->
+    <section class="view is-active" data-view="agendar" aria-label="Agendamento">
+
+      <div class="hero">
+        <div class="container">
+          <p class="eyebrow hero__eyebrow">Barber Shop · Sarapuí-SP</p>
+          <h1 class="hero__title">
+            <span>Seu corte na hora certa,</span>
+            <span class="gold-text">sem complicação.</span>
+          </h1>
+          <p class="hero__subtitle">
+            Agende em segundos — sem cadastro, sem login. Escolha o serviço, o
+            profissional e o horário livre. Simples assim.
+          </p>
+          <div class="hero__actions">
+            <a href="#agendar-form" class="btn btn--primary btn--large">Agendar agora</a>
+            <button class="btn btn--ghost btn--large" data-target="loja">Ver a loja</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section container" id="agendar-form">
+        <div class="section-head">
+          <p class="eyebrow reveal">Agendamento</p>
+          <h2 class="section-title reveal">Monte seu horário</h2>
+          <div class="rule-gold reveal"></div>
+          <p class="section-lead reveal">
+            Nenhum login necessário. Só o dono vê seus dados de contato — no
+            painel público aparece apenas o horário ocupado com o primeiro nome.
+          </p>
+        </div>
+
+        <form id="booking-form" novalidate>
+          <!-- Passo 1: serviço -->
+          <div class="step">
+            <div class="step__head"><span class="step__num">1</span><h3 class="step__title">O que você quer fazer?</h3></div>
+            <!-- PLACEHOLDER: serviços/preços de exemplo (config.js). FASE 2: dados reais. -->
+            <div class="choice-grid" id="choices-servico" role="radiogroup" aria-label="Serviço"></div>
+          </div>
+
+          <!-- Passo 2: cabeleireiro -->
+          <div class="step">
+            <div class="step__head"><span class="step__num">2</span><h3 class="step__title">Com qual cabeleireiro?</h3></div>
+            <!-- PLACEHOLDER: cabeleireiros de exemplo (config.js). FASE 2: equipe real. -->
+            <div class="choice-grid" id="choices-cabeleireiro" role="radiogroup" aria-label="Cabeleireiro"></div>
+          </div>
+
+          <!-- Passo 3: pagamento -->
+          <div class="step">
+            <div class="step__head"><span class="step__num">3</span><h3 class="step__title">Como vai pagar?</h3></div>
+            <div class="choice-grid" id="choices-pagamento" role="radiogroup" aria-label="Forma de pagamento"></div>
+          </div>
+
+          <!-- Passo 4: dia + horário -->
+          <div class="step">
+            <div class="step__head"><span class="step__num">4</span><h3 class="step__title">Qual dia e horário?</h3></div>
+            <div class="field">
+              <label class="field__label" for="input-data">Dia</label>
+              <input class="control" type="date" id="input-data" name="data" />
+            </div>
+            <p class="field__label" style="margin-bottom:.5rem;">Horários (os riscados já estão ocupados)</p>
+            <div class="slots-grid" id="slots" role="radiogroup" aria-label="Horários disponíveis"></div>
+          </div>
+
+          <!-- Passo 5: dados (só o dono vê) -->
+          <div class="step">
+            <div class="step__head"><span class="step__num">5</span><h3 class="step__title">Seus dados</h3></div>
+            <div class="card card--soft">
+              <div class="field">
+                <label class="field__label" for="input-nome">Nome <span class="req">*</span></label>
+                <input class="control" type="text" id="input-nome" name="nome" autocomplete="name" maxlength="60" placeholder="Como podemos te chamar?" />
+                <span class="field__error" aria-live="polite"></span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="input-telefone">Telefone / WhatsApp <span class="req">*</span></label>
+                <input class="control" type="tel" id="input-telefone" name="telefone" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(15) 99999-9999" />
+                <span class="field__error" aria-live="polite"></span>
+              </div>
+              <p class="muted" style="font-size:.85rem;">
+                Seu nome e telefone ficam visíveis <strong>apenas para o dono</strong>.
+                No horário reservado, o público vê só o seu primeiro nome.
+              </p>
+            </div>
+          </div>
+
+          <!-- Resumo -->
+          <div class="summary" id="booking-summary" aria-live="polite"></div>
+
+          <button type="submit" class="btn btn--primary btn--large btn--block" style="margin-top:1.25rem;">
+            Confirmar agendamento
+          </button>
+        </form>
+
+        <!-- Sucesso -->
+        <div class="booking-done" id="booking-done" role="status">
+          <div class="booking-done__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" width="26" height="26"><path d="M20 6 9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <p class="booking-done__title">Agendado, <span id="done-name">cliente</span>!</p>
+          <p class="muted" id="done-detail"></p>
+          <p class="muted" style="margin-top:.6rem;font-size:.9rem;">
+            Seu horário aparece riscado na grade com seu primeiro nome. Até já!
+          </p>
+          <button type="button" class="btn btn--ghost" id="btn-novo" style="margin-top:1.25rem;">Fazer outro agendamento</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW: LOJA (vitrine, sem checkout)
+         ============================================================ -->
+    <section class="view" data-view="loja" aria-label="Loja">
+      <div class="section container">
+        <div class="section-head">
+          <p class="eyebrow reveal">Loja</p>
+          <h2 class="section-title reveal">Vista o estilo da casa</h2>
+          <div class="rule-gold reveal"></div>
+          <p class="section-lead reveal">
+            Roupas e produtos vendidos aqui na barbearia. Gostou de algo? É só
+            passar na loja física ou falar com a gente no balcão.
+          </p>
+        </div>
+        <!-- PLACEHOLDER: produtos/fotos de exemplo (config.js). FASE 2: itens reais + fotos. -->
+        <div class="grid grid--3" id="shop-grid"></div>
+        <p class="muted" style="margin-top:2rem;font-size:.9rem;">
+          Vitrine informativa — sem compra online nesta fase. Preços e itens sujeitos a disponibilidade na loja.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW: CURSO (o dono tem curso de cabeleireiro)
+         ============================================================ -->
+    <section class="view" data-view="curso" aria-label="Curso">
+      <div class="section container" id="course-root">
+        <div class="section-head">
+          <p class="eyebrow reveal">Curso</p>
+          <h2 class="section-title reveal" id="course-title">Curso de Barbeiro Profissional</h2>
+          <div class="rule-gold reveal"></div>
+        </div>
+
+        <div class="course-hero">
+          <div class="reveal">
+            <p class="section-lead" id="course-sub" style="color:var(--color-gold);margin-top:0;"></p>
+            <p class="section-lead" id="course-desc"></p>
+            <div class="course-price-box">
+              <span class="course-price-box__value" id="course-price"></span>
+              <span class="muted" id="course-parcelado"></span>
+            </div>
+            <div style="margin-top:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+              <!-- PLACEHOLDER: 55SEUNUMERO = WhatsApp real do dono (FASE 2) -->
+              <a class="btn btn--primary btn--large"
+                 href="https://wa.me/55SEUNUMERO?text=Ol%C3%A1!%20Tenho%20interesse%20no%20curso%20de%20barbeiro."
+                 target="_blank" rel="noopener">Quero me inscrever</a>
+            </div>
+          </div>
+          <div class="course-visual reveal reveal--delay-1" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+              <path d="M8.5 8.5 20 20M8.5 15.5 20 4" stroke-linecap="round"/>
+            </svg>
+            <span class="photo-tag">Foto de exemplo</span>
+          </div>
+        </div>
+
+        <div class="section-head" style="margin-top:3rem;">
+          <p class="eyebrow reveal">Conteúdo</p>
+          <h3 class="section-title reveal" style="font-size:var(--fs-xl);">O que você vai aprender</h3>
+        </div>
+        <div class="card" id="course-modules"></div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW: ÁREA DO DONO (ADM) — protegida por senha (1234)
+         ============================================================ -->
+    <section class="view" data-view="dono" aria-label="Área do Dono">
+      <div class="section container">
+
+        <!-- Tela de bloqueio -->
+        <div id="admin-lock">
+          <div class="lock">
+            <div class="lock__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="26" height="26">
+                <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+              </svg>
+            </div>
+            <h2 class="section-title" style="font-size:var(--fs-xl);">Área do Dono</h2>
+            <p class="muted" style="margin:.5rem 0 1.5rem;">Acesso restrito. Aqui ficam os dados detalhados de cada cliente.</p>
+            <form id="admin-lock-form">
+              <div class="field">
+                <label class="field__label sr-only" for="admin-pass">Senha</label>
+                <input class="control" type="password" id="admin-pass" placeholder="Senha" autocomplete="off" inputmode="numeric" />
+                <span class="field__error" id="admin-pass-error" aria-live="polite"></span>
+              </div>
+              <button type="submit" class="btn btn--primary btn--block">Entrar</button>
+            </form>
+            <!-- PLACEHOLDER: senha padrão 1234 (Fase 1). FASE 2: senha própria do dono. -->
+            <p class="muted" style="font-size:.78rem;margin-top:1rem;">Protótipo: senha padrão <strong>1234</strong>.</p>
+          </div>
+        </div>
+
+        <!-- Painel -->
+        <div class="admin-panel" id="admin-panel">
+          <div class="section-head">
+            <p class="eyebrow">Painel do dono</p>
+            <h2 class="section-title">Agendamentos</h2>
+            <div class="rule-gold"></div>
+          </div>
+
+          <div class="admin-toolbar">
+            <div class="admin-stats">
+              <div class="stat"><div class="stat__value" id="stat-total">0</div><div class="stat__label">Total</div></div>
+              <div class="stat"><div class="stat__value" id="stat-hoje">0</div><div class="stat__label">Hoje</div></div>
+              <div class="stat"><div class="stat__value" id="stat-receita">R$ 0,00</div><div class="stat__label">Previsto</div></div>
+            </div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+              <button type="button" class="btn btn--danger btn--small" id="btn-clear">Limpar tudo</button>
+              <button type="button" class="btn btn--ghost btn--small" id="btn-lock">Sair</button>
+            </div>
+          </div>
+
+          <div class="appts" id="admin-appts"></div>
+
+          <div class="privacy-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z" stroke-linejoin="round"/></svg>
+            <span>
+              Nome e telefone dos clientes aparecem <strong>somente aqui</strong>.
+              <br>Protótipo Fase 1: dados ficam salvos só neste aparelho/navegador
+              (localStorage) e a senha é apenas uma trava de tela — sem servidor.
+              Fase 2 traz login real e dados na nuvem.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <span class="logo">
+          <span class="logo__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8.5 20 20M8.5 15.5 20 4" stroke-linecap="round"/></svg>
+          </span>
+          <span>Erick Garcia<span class="logo__accent">.</span></span>
+        </span>
+        <p class="footer__tagline">Barbearia em Sarapuí-SP. Corte, barba, loja e curso de barbeiro num só lugar.</p>
+      </div>
+      <div class="footer__col">
+        <h4 class="footer__heading">Contato</h4>
+        <!-- PLACEHOLDER: dados reais do Erick Garcia (FASE 2) -->
+        <ul class="footer__list">
+          <li>WhatsApp — (15) 0000-0000</li>
+          <li>Endereço — Sarapuí/SP</li>
+          <li>Instagram — @erickgarcia</li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h4 class="footer__heading">Horário</h4>
+        <!-- PLACEHOLDER: horário real (FASE 2) -->
+        <ul class="footer__list">
+          <li>Ter a Sex — 09h às 19h</li>
+          <li>Sábado — 09h às 18h</li>
+          <li>Dom e Seg — fechado</li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer__bottom">
+      <p>&copy; <span id="year"></span> Barber Shop Erick Garcia.</p>
+      <p class="footer__note">Protótipo (Fase 1) — serviços, preços, equipe, produtos, curso e contatos são de EXEMPLO (placeholder), a serem substituídos pelos dados reais do cliente.</p>
+    </div>
+  </footer>
+
+  <!-- JS vanilla, sem dependências. Ordem importa:
+       config (dados/helpers) -> storage -> ui -> nav -> módulos de área -> main. -->
+  <script>
+/* =========================================================
+   CONFIG + DADOS — BARBER SHOP ERICK GARCIA
+   Ponto ÚNICO de configuração e de dados de exemplo (Fase 1).
+
+   >>> TODOS OS DADOS ABAIXO SÃO DE EXEMPLO (PLACEHOLDER) <<<
+   FASE 2: trocar serviços/preços, cabeleireiros, produtos da
+   loja e módulos do curso pelos dados REAIS do Erick Garcia.
+   Cada bloco está marcado com "FASE 2:".
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var CONFIG = {
+    // Prefixo de todas as chaves no localStorage (isolamento por origem).
+    storagePrefix: "barber_",
+
+    // Senha simples da Área do Dono (padrão dos protótipos da casa).
+    // FASE 2: o dono pode trocar por uma senha própria.
+    adminPassword: "1234",
+
+    // Nome exibido da barbearia (placeholder textual — não há logo real ainda).
+    brandName: "Erick Garcia",
+    brandTagline: "Barber Shop",
+
+    // Janela de dias à frente que o cliente pode agendar (hoje + N dias).
+    diasAgendamento: 30,
+
+    // Grade fixa de horários oferecidos por dia.
+    // FASE 2: ajustar aos horários REAIS de funcionamento da barbearia.
+    horarios: [
+      "09:00", "09:40", "10:20", "11:00", "11:40",
+      "13:00", "13:40", "14:20", "15:00", "15:40",
+      "16:20", "17:00", "17:40", "18:20", "19:00"
+    ]
+  };
+
+  // ---- FASE 2: SERVIÇOS reais (nome + duração/descrição + preço) ----------
+  var SERVICOS = [
+    { id: "corte",        nome: "Corte de Cabelo",     preco: 40, meta: "~40 min" },
+    { id: "barba",        nome: "Barba",               preco: 30, meta: "~30 min" },
+    { id: "corte-barba",  nome: "Corte + Barba",       preco: 60, meta: "~1h" },
+    { id: "pezinho",      nome: "Pezinho / Acabamento", preco: 20, meta: "~20 min" },
+    { id: "sobrancelha",  nome: "Sobrancelha",         preco: 15, meta: "~15 min" },
+    { id: "platinado",    nome: "Descoloração / Platinado", preco: 120, meta: "~2h" }
+  ];
+
+  // ---- FASE 2: CABELEIREIROS reais (nome + especialidade) -----------------
+  var CABELEIREIROS = [
+    { id: "erick",   nome: "Erick Garcia", meta: "Dono · cortes clássicos" },
+    { id: "bruno",   nome: "Bruno",        meta: "Barba & navalha" },
+    { id: "diego",   nome: "Diego",        meta: "Degradê & freestyle" }
+  ];
+
+  // ---- FASE 2: FORMAS DE PAGAMENTO reais aceitas --------------------------
+  var PAGAMENTOS = [
+    { id: "dinheiro", nome: "Dinheiro" },
+    { id: "pix",      nome: "Pix" },
+    { id: "debito",   nome: "Cartão de Débito" },
+    { id: "credito",  nome: "Cartão de Crédito" }
+  ];
+
+  // ---- FASE 2: PRODUTOS da loja (roupas/itens vendidos no local) ----------
+  // Vitrine apenas (sem checkout). Trocar por itens e fotos reais.
+  var PRODUTOS = [
+    { id: "camiseta-preta", cat: "Vestuário", nome: "Camiseta Preta Erick Garcia", preco: 69.9, desc: "Algodão premium, logo bordado dourado. Tam. P ao GG." },
+    { id: "bone-dourado",   cat: "Acessórios", nome: "Boné Aba Curva Dourado",     preco: 59.9, desc: "Boné preto com detalhe dourado da barbearia." },
+    { id: "moletom",        cat: "Vestuário", nome: "Moletom Canguru Preto",       preco: 149.9, desc: "Moletom felpado, capuz ajustável, estampa discreta." },
+    { id: "kit-barba",      cat: "Cuidados",  nome: "Kit Barba (óleo + balm)",     preco: 89.9, desc: "Óleo hidratante + balm modelador para barba." },
+    { id: "pomada",         cat: "Cuidados",  nome: "Pomada Modeladora Efeito Seco", preco: 39.9, desc: "Fixação forte, acabamento matte. 120g." },
+    { id: "camiseta-branca", cat: "Vestuário", nome: "Camiseta Branca Assinatura", preco: 69.9, desc: "Versão clara da linha, logo dourado no peito." }
+  ];
+
+  // ---- FASE 2: MÓDULOS do curso de cabeleireiro ---------------------------
+  var CURSO = {
+    titulo: "Curso de Barbeiro Profissional",
+    subtitulo: "Do zero ao profissional, com o método do Erick Garcia.",
+    preco: 1200,
+    precoParcelado: "ou 12x de R$ 120",
+    descricao: "Formação prática e presencial em Sarapuí. Aprenda técnica de tesoura, máquina, navalha, barba e atendimento — com material e certificado ao final.",
+    modulos: [
+      { titulo: "Fundamentos & higiene", texto: "Equipamentos, biossegurança, postura profissional e atendimento." },
+      { titulo: "Máquina & degradê", texto: "Pentes, transições, degradê baixo/médio/alto e navalhado." },
+      { titulo: "Tesoura & texturização", texto: "Cortes clássicos e modernos, tesoura e navalha na mão." },
+      { titulo: "Barba & navalha", texto: "Desenho, alinhamento, toalha quente e finalização." },
+      { titulo: "Negócio & carreira", texto: "Precificação, fidelização, redes sociais e como montar sua cadeira." }
+    ]
+  };
+
+  // ---- Helpers globais ----------------------------------------------------
+
+  // Escapa texto para inserção segura via innerHTML (anti self-XSS).
+  // Usado em TODO dado vindo do cliente (nome, telefone, observações).
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function primeiroNome(nomeCompleto) {
+    var t = String(nomeCompleto || "").trim();
+    if (!t) return "";
+    return t.split(/\s+/)[0];
+  }
+
+  function formatPreco(v) {
+    return "R$ " + Number(v).toFixed(2).replace(".", ",").replace(/\d(?=(\d{3})+,)/g, "$&.");
+  }
+
+  function byId(list, id) {
+    for (var i = 0; i < list.length; i++) { if (list[i].id === id) return list[i]; }
+    return null;
+  }
+
+  // ---- Datas (fonte ÚNICA — evita divergência entre módulos) --------------
+  // Usa data LOCAL (compensa o fuso) para não errar o "hoje" perto da meia-noite.
+  function todayISO() {
+    var d = new Date();
+    var local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  }
+  function nowHHMM() {
+    var d = new Date();
+    return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+  }
+  function addDaysISO(iso, days) {
+    var d = new Date(iso + "T00:00:00"); // meia-noite LOCAL — sem UTC off-by-one
+    d.setDate(d.getDate() + days);
+    return todayISOfromDate(d);
+  }
+  function todayISOfromDate(d) {
+    var local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  }
+  function formatDataBR(iso) {
+    if (!iso) return "";
+    var p = String(iso).split("-");
+    return p[2] + "/" + p[1] + "/" + p[0];
+  }
+
+  // Expõe tudo num namespace único.
+  window.BARBER = {
+    config: CONFIG,
+    servicos: SERVICOS,
+    cabeleireiros: CABELEIREIROS,
+    pagamentos: PAGAMENTOS,
+    produtos: PRODUTOS,
+    curso: CURSO,
+    esc: esc,
+    primeiroNome: primeiroNome,
+    formatPreco: formatPreco,
+    byId: byId,
+    todayISO: todayISO,
+    nowHHMM: nowHHMM,
+    addDaysISO: addDaysISO,
+    formatDataBR: formatDataBR
+  };
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   STORAGE — persistência dos agendamentos em localStorage.
+   Sem servidor (Fase 1). Chaves com prefixo "barber_"
+   (isolamento por origem — evita colisão com outros protótipos).
+
+   Modelo de um agendamento:
+   {
+     id: "a_<timestamp>_<rand>",   // id sintético (nunca deriva de texto do cliente)
+     nome, telefone,               // DADOS PESSOAIS — só a Área do Dono exibe
+     servicoId, cabeleireiroId, pagamentoId,
+     data: "AAAA-MM-DD", horario: "HH:MM",
+     criadoEm: <ISO string>
+   }
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var PREFIX = window.BARBER.config.storagePrefix;
+  var KEY = PREFIX + "agendamentos";
+
+  function safeParse(raw) {
+    try {
+      var v = JSON.parse(raw);
+      return Array.isArray(v) ? v : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function getAll() {
+    try {
+      return safeParse(window.localStorage.getItem(KEY));
+    } catch (e) {
+      // localStorage indisponível (modo privado antigo etc.) — degrada em memória.
+      return [];
+    }
+  }
+
+  function saveAll(list) {
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function genId() {
+    return "a_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  // Chave de ocupação de um horário: mesma data + mesmo cabeleireiro + mesmo horário.
+  function slotKey(data, cabeleireiroId, horario) {
+    return data + "|" + cabeleireiroId + "|" + horario;
+  }
+
+  function isTaken(data, cabeleireiroId, horario) {
+    var all = getAll();
+    for (var i = 0; i < all.length; i++) {
+      var a = all[i];
+      if (a.data === data && a.cabeleireiroId === cabeleireiroId && a.horario === horario) {
+        return a;
+      }
+    }
+    return null;
+  }
+
+  // Mapa horario -> agendamento para um dia+cabeleireiro, lendo o storage
+  // UMA vez só (usado ao montar a grade, evitando 1 parse por horário).
+  function takenMap(data, cabeleireiroId) {
+    var all = getAll();
+    var map = {};
+    for (var i = 0; i < all.length; i++) {
+      var a = all[i];
+      if (a.data === data && a.cabeleireiroId === cabeleireiroId) {
+        map[a.horario] = a;
+      }
+    }
+    return map;
+  }
+
+  // Adiciona com checagem de conflito (dupla reserva do mesmo slot).
+  function add(appt) {
+    var all = getAll();
+    if (isTaken(appt.data, appt.cabeleireiroId, appt.horario)) {
+      return { ok: false, reason: "taken" };
+    }
+    appt.id = genId();
+    appt.criadoEm = new Date().toISOString();
+    all.push(appt);
+    if (!saveAll(all)) return { ok: false, reason: "storage" };
+    return { ok: true, appt: appt };
+  }
+
+  function remove(id) {
+    var all = getAll();
+    var next = all.filter(function (a) { return a.id !== id; });
+    saveAll(next);
+    return next;
+  }
+
+  function clearAll() {
+    saveAll([]);
+    return [];
+  }
+
+  window.BarberStore = {
+    KEY: KEY,
+    getAll: getAll,
+    isTaken: isTaken,
+    takenMap: takenMap,
+    slotKey: slotKey,
+    add: add,
+    remove: remove,
+    clearAll: clearAll
+  };
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   UI — utilitários visuais compartilhados (toast).
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var toastEl = null;
+  var toastTimer = null;
+
+  function showToast(message) {
+    if (!toastEl) {
+      toastEl = document.createElement("div");
+      toastEl.className = "toast";
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      document.body.appendChild(toastEl);
+    }
+    // textContent: sem risco de HTML injetado no toast.
+    toastEl.textContent = message;
+    // reflow para reiniciar a transição se já visível
+    void toastEl.offsetWidth;
+    toastEl.classList.add("is-visible");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toastEl.classList.remove("is-visible");
+    }, 2600);
+  }
+
+  window.BarberUI = { showToast: showToast };
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   NAV — troca de abas (Agendar / Loja / Curso / Área do Dono).
+   Single-page: só uma .view fica ativa por vez. Sem recarregar.
+   Sincroniza com o hash (#agendar, #loja, #curso, #dono) para
+   permitir link direto e o botão voltar do navegador.
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var VALID = ["agendar", "loja", "curso", "dono"];
+  var listeners = [];
+
+  function onViewChange(fn) { listeners.push(fn); }
+
+  function setActive(view) {
+    if (VALID.indexOf(view) === -1) view = "agendar";
+
+    document.querySelectorAll(".view").forEach(function (el) {
+      el.classList.toggle("is-active", el.getAttribute("data-view") === view);
+    });
+    document.querySelectorAll(".tab").forEach(function (el) {
+      var on = el.getAttribute("data-target") === view;
+      el.classList.toggle("is-active", on);
+      el.setAttribute("aria-current", on ? "page" : "false");
+    });
+
+    // Rola para o topo da área ativa (bom no mobile ao trocar de aba).
+    window.scrollTo({ top: 0, behavior: "auto" });
+
+    listeners.forEach(function (fn) { fn(view); });
+  }
+
+  function go(view) {
+    if (VALID.indexOf(view) === -1) view = "agendar";
+    if (("#" + view) !== window.location.hash) {
+      window.location.hash = view; // dispara hashchange -> setActive
+    } else {
+      setActive(view);
+    }
+  }
+
+  function currentFromHash() {
+    var h = (window.location.hash || "").replace("#", "");
+    return VALID.indexOf(h) !== -1 ? h : "agendar";
+  }
+
+  document.addEventListener("click", function (e) {
+    var tab = e.target.closest("[data-target]");
+    if (!tab) return;
+    e.preventDefault();
+    go(tab.getAttribute("data-target"));
+  });
+
+  window.addEventListener("hashchange", function () {
+    var h = (window.location.hash || "").replace("#", "");
+    // Âncora interna que NÃO é aba (ex.: #agendar-form): deixa o browser rolar
+    // até o elemento, sem trocar de view nem forçar scroll ao topo.
+    if (h && VALID.indexOf(h) === -1) return;
+    setActive(h);
+  }, false);
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setActive(currentFromHash());
+  });
+
+  window.BarberNav = { go: go, onViewChange: onViewChange };
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   BOOKING — Área de Agendamento (SEM login).
+   Fluxo simples: serviço -> cabeleireiro -> pagamento ->
+   dia -> horário -> nome + telefone -> confirmar.
+
+   Requisito literal do dono:
+   - Horário OCUPADO aparece RISCADO com o PRIMEIRO NOME embaixo
+     (ex.: "10:00" riscado + "João"). No público só isso aparece.
+   - Nome completo e TELEFONE NÃO aparecem aqui — só na Área do Dono.
+
+   Segurança (aprendizado da casa):
+   - Todo texto do cliente é escapado (BARBER.esc) antes de ir ao DOM.
+   - Interação por delegação + data-* (nunca texto do cliente em onclick).
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var B = window.BARBER;
+  var Store = window.BarberStore;
+
+  var state = { servicoId: null, cabeleireiroId: null, pagamentoId: null, data: null, horario: null };
+
+  var els = {};
+
+  // Helpers de data centralizados em config.js (fonte única — evita drift/fuso).
+  var todayISO = B.todayISO;
+  var nowHHMM = B.nowHHMM;
+  var addDaysISO = B.addDaysISO;
+  var formatDataBR = B.formatDataBR;
+
+  // ---- Render dos chips de escolha ----------------------------------------
+  function buildChoices(container, list, group) {
+    container.innerHTML = list.map(function (item) {
+      var meta = "";
+      if (group === "servico") meta = B.formatPreco(item.preco) + " · " + item.meta;
+      else if (item.meta) meta = item.meta;
+      return (
+        '<button type="button" class="choice" role="radio" aria-checked="false"' +
+        ' data-group="' + group + '" data-id="' + B.esc(item.id) + '">' +
+        '<span>' + B.esc(item.nome) + '</span>' +
+        (meta ? '<span class="choice__meta">' + B.esc(meta) + '</span>' : '') +
+        '</button>'
+      );
+    }).join("");
+  }
+
+  function selectChoice(group, id) {
+    if (group === "servico") state.servicoId = id;
+    else if (group === "cabeleireiro") state.cabeleireiroId = id;
+    else if (group === "pagamento") state.pagamentoId = id;
+
+    var container =
+      group === "servico" ? els.servicos :
+      group === "cabeleireiro" ? els.cabeleireiros : els.pagamentos;
+
+    container.querySelectorAll(".choice").forEach(function (btn) {
+      var on = btn.getAttribute("data-id") === id;
+      btn.classList.toggle("is-selected", on);
+      btn.setAttribute("aria-checked", on ? "true" : "false");
+    });
+
+    if (group === "cabeleireiro") {
+      // Trocar de cabeleireiro invalida o horário escolhido (a agenda é dele).
+      state.horario = null;
+      renderSlots();
+    }
+    updateSummary();
+  }
+
+  // ---- Grade de horários ---------------------------------------------------
+  function renderSlots() {
+    var grid = els.slots;
+    if (!state.cabeleireiroId) {
+      grid.innerHTML = '<p class="slots-empty">Escolha um cabeleireiro para ver os horários livres.</p>';
+      return;
+    }
+    if (!state.data) {
+      grid.innerHTML = '<p class="slots-empty">Escolha um dia para ver os horários.</p>';
+      return;
+    }
+
+    var isToday = state.data === todayISO();
+    var agora = nowHHMM();
+    // Lê o storage UMA vez por render (mapa horario->agendamento).
+    var ocupados = Store.takenMap(state.data, state.cabeleireiroId);
+
+    grid.innerHTML = B.config.horarios.map(function (h) {
+      var appt = ocupados[h];
+      if (appt) {
+        // OCUPADO: risco no horário + primeiro nome (escapado) embaixo.
+        var nome = B.esc(B.primeiroNome(appt.nome));
+        return (
+          '<div class="slot slot--taken" aria-disabled="true"' +
+          ' aria-label="' + B.esc(h) + ' ocupado por ' + nome + '">' +
+          '<span class="slot__time">' + B.esc(h) + '</span>' +
+          '<span class="slot__name">' + nome + '</span>' +
+          '</div>'
+        );
+      }
+      if (isToday && h <= agora) {
+        // Horário já passou hoje: indisponível (não é reserva de ninguém).
+        return (
+          '<div class="slot slot--taken" aria-disabled="true" aria-label="' + B.esc(h) + ' indisponível">' +
+          '<span class="slot__time">' + B.esc(h) + '</span>' +
+          '<span class="slot__name muted">—</span>' +
+          '</div>'
+        );
+      }
+      var sel = state.horario === h ? " is-selected" : "";
+      return (
+        '<button type="button" class="slot' + sel + '" role="radio"' +
+        ' aria-checked="' + (state.horario === h ? "true" : "false") + '"' +
+        ' data-horario="' + B.esc(h) + '">' +
+        '<span class="slot__time">' + B.esc(h) + '</span>' +
+        '</button>'
+      );
+    }).join("");
+  }
+
+  function selectSlot(h) {
+    state.horario = h;
+    els.slots.querySelectorAll(".slot").forEach(function (s) {
+      var on = s.getAttribute("data-horario") === h;
+      s.classList.toggle("is-selected", on && !s.classList.contains("slot--taken"));
+      if (s.hasAttribute("data-horario")) s.setAttribute("aria-checked", on ? "true" : "false");
+    });
+    updateSummary();
+  }
+
+  // ---- Resumo --------------------------------------------------------------
+  function updateSummary() {
+    var s = B.byId(B.servicos, state.servicoId);
+    var c = B.byId(B.cabeleireiros, state.cabeleireiroId);
+    var p = B.byId(B.pagamentos, state.pagamentoId);
+    var rows = [
+      ["Serviço", s ? s.nome + " (" + B.formatPreco(s.preco) + ")" : "—"],
+      ["Cabeleireiro", c ? c.nome : "—"],
+      ["Pagamento", p ? p.nome : "—"],
+      ["Dia", state.data ? formatDataBR(state.data) : "—"],
+      ["Horário", state.horario || "—"]
+    ];
+    els.summary.innerHTML = rows.map(function (r) {
+      return '<div class="summary__row"><span>' + r[0] + '</span><span>' + B.esc(r[1]) + '</span></div>';
+    }).join("");
+  }
+
+  // ---- Validação + envio ---------------------------------------------------
+  function setError(field, msg) {
+    var wrap = field.closest(".field");
+    if (wrap) wrap.classList.toggle("field--invalid", !!msg);
+    var span = wrap ? wrap.querySelector(".field__error") : null;
+    if (span) span.textContent = msg || "";
+  }
+
+  function digits(str) { return String(str || "").replace(/\D/g, ""); }
+
+  function validate() {
+    var ok = true;
+    if (!state.servicoId) { window.BarberUI.showToast("Escolha um serviço."); ok = false; }
+    else if (!state.cabeleireiroId) { window.BarberUI.showToast("Escolha um cabeleireiro."); ok = false; }
+    else if (!state.pagamentoId) { window.BarberUI.showToast("Escolha a forma de pagamento."); ok = false; }
+    else if (!state.data) { window.BarberUI.showToast("Escolha um dia."); ok = false; }
+    else if (!state.horario) { window.BarberUI.showToast("Escolha um horário livre."); ok = false; }
+    if (!ok) return false;
+
+    var nomeVal = els.nome.value.trim();
+    if (nomeVal.length < 2) { setError(els.nome, "Diga seu nome."); els.nome.focus(); return false; }
+    setError(els.nome, "");
+
+    var telVal = digits(els.telefone.value);
+    if (telVal.length < 8) { setError(els.telefone, "Telefone inválido."); els.telefone.focus(); return false; }
+    setError(els.telefone, "");
+
+    return true;
+  }
+
+  function submit(e) {
+    e.preventDefault();
+    if (!validate()) return;
+
+    var appt = {
+      nome: els.nome.value.trim(),
+      telefone: els.telefone.value.trim(),
+      servicoId: state.servicoId,
+      cabeleireiroId: state.cabeleireiroId,
+      pagamentoId: state.pagamentoId,
+      data: state.data,
+      horario: state.horario
+    };
+
+    var res = Store.add(appt);
+    if (!res.ok) {
+      if (res.reason === "taken") {
+        window.BarberUI.showToast("Ops! Esse horário acabou de ser reservado. Escolha outro.");
+        state.horario = null;
+        renderSlots();
+        updateSummary();
+      } else {
+        window.BarberUI.showToast("Não foi possível salvar. Tente novamente.");
+      }
+      return;
+    }
+
+    showDone(res.appt);
+    // Atualiza a grade para já mostrar o horário riscado com o nome.
+    renderSlots();
+
+    // Avisa a Área do Dono para recontar/atualizar a lista, se aberta.
+    document.dispatchEvent(new CustomEvent("barber:store-changed"));
+  }
+
+  // ---- Sucesso -------------------------------------------------------------
+  function showDone(appt) {
+    var c = B.byId(B.cabeleireiros, appt.cabeleireiroId);
+    els.doneName.textContent = B.primeiroNome(appt.nome);
+    els.doneDetail.textContent =
+      formatDataBR(appt.data) + " às " + appt.horario +
+      (c ? " · com " + c.nome : "");
+    els.form.style.display = "none";
+    els.done.classList.add("is-visible");
+    els.done.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function resetForm() {
+    // Zera estado e volta ao início para um novo agendamento.
+    state.servicoId = null; state.cabeleireiroId = null; state.pagamentoId = null;
+    state.horario = null;
+    els.form.reset();
+    // Mantém o dia atual selecionado por conveniência.
+    state.data = els.data.value || todayISO();
+    els.data.value = state.data;
+    document.querySelectorAll("#booking-form .choice.is-selected").forEach(function (b) {
+      b.classList.remove("is-selected"); b.setAttribute("aria-checked", "false");
+    });
+    setError(els.nome, ""); setError(els.telefone, "");
+    renderSlots();
+    updateSummary();
+    els.done.classList.remove("is-visible");
+    els.form.style.display = "";
+  }
+
+  // ---- Boot ----------------------------------------------------------------
+  function init() {
+    els.form = document.getElementById("booking-form");
+    if (!els.form) return;
+    els.servicos = document.getElementById("choices-servico");
+    els.cabeleireiros = document.getElementById("choices-cabeleireiro");
+    els.pagamentos = document.getElementById("choices-pagamento");
+    els.data = document.getElementById("input-data");
+    els.slots = document.getElementById("slots");
+    els.nome = document.getElementById("input-nome");
+    els.telefone = document.getElementById("input-telefone");
+    els.summary = document.getElementById("booking-summary");
+    els.done = document.getElementById("booking-done");
+    els.doneName = document.getElementById("done-name");
+    els.doneDetail = document.getElementById("done-detail");
+
+    buildChoices(els.servicos, B.servicos, "servico");
+    buildChoices(els.cabeleireiros, B.cabeleireiros, "cabeleireiro");
+    buildChoices(els.pagamentos, B.pagamentos, "pagamento");
+
+    // Datas: hoje até hoje + N dias.
+    var min = todayISO();
+    state.data = min;
+    els.data.value = min;
+    els.data.min = min;
+    els.data.max = addDaysISO(min, B.config.diasAgendamento);
+
+    // Delegação: chips de escolha.
+    els.form.addEventListener("click", function (e) {
+      var choice = e.target.closest(".choice");
+      if (choice) { selectChoice(choice.getAttribute("data-group"), choice.getAttribute("data-id")); return; }
+      var slot = e.target.closest(".slot[data-horario]");
+      if (slot) { selectSlot(slot.getAttribute("data-horario")); return; }
+    });
+
+    els.data.addEventListener("change", function () {
+      state.data = els.data.value || todayISO();
+      state.horario = null;
+      renderSlots();
+      updateSummary();
+    });
+
+    els.form.addEventListener("submit", submit);
+
+    var btnNovo = document.getElementById("btn-novo");
+    if (btnNovo) btnNovo.addEventListener("click", resetForm);
+
+    // Se a Área do Dono cancelar/limpar, a grade reflete o horário livre.
+    document.addEventListener("barber:store-changed", function () {
+      renderSlots();
+    });
+
+    renderSlots();
+    updateSummary();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   SHOP — Área da LOJA (vitrine das roupas/itens vendidos no local).
+   Somente visualização (sem checkout), conforme pedido.
+   Dados de exemplo em config.js (FASE 2: trocar por reais + fotos).
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var B = window.BARBER;
+
+  var HANGER_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">' +
+    '<path d="M12 6a2 2 0 1 1 1.4 1.9L12 9v1"/>' +
+    '<path d="M12 10 3.5 15.5A1 1 0 0 0 4 17.5h16a1 1 0 0 0 .5-2L12 10Z" stroke-linejoin="round"/></svg>';
+
+  function buildCard(p) {
+    return (
+      '<article class="card product-card reveal">' +
+      '<div class="product-card__media">' + HANGER_SVG +
+      '<span class="photo-tag">Foto de exemplo</span>' +
+      '</div>' +
+      '<div class="product-card__body">' +
+      '<span class="product-card__cat">' + B.esc(p.cat) + '</span>' +
+      '<h3 class="product-card__name">' + B.esc(p.nome) + '</h3>' +
+      '<p class="product-card__desc">' + B.esc(p.desc) + '</p>' +
+      '<span class="product-card__price">' + B.formatPreco(p.preco) + '</span>' +
+      '</div>' +
+      '</article>'
+    );
+  }
+
+  function init() {
+    var grid = document.getElementById("shop-grid");
+    if (!grid) return;
+    grid.innerHTML = B.produtos.map(buildCard).join("");
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   COURSE — Área do CURSO (o dono tem curso de cabeleireiro).
+   Renderiza título, descrição, preço e módulos a partir do config.
+   FASE 2: trocar textos/preço/módulos pelos reais.
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var B = window.BARBER;
+  var C = B.curso;
+
+  function init() {
+    var root = document.getElementById("course-root");
+    if (!root) return;
+
+    var titleEl = document.getElementById("course-title");
+    var subEl = document.getElementById("course-sub");
+    var descEl = document.getElementById("course-desc");
+    var priceEl = document.getElementById("course-price");
+    var parcEl = document.getElementById("course-parcelado");
+    var modulesEl = document.getElementById("course-modules");
+
+    if (titleEl) titleEl.textContent = C.titulo;
+    if (subEl) subEl.textContent = C.subtitulo;
+    if (descEl) descEl.textContent = C.descricao;
+    if (priceEl) priceEl.textContent = B.formatPreco(C.preco);
+    if (parcEl) parcEl.textContent = C.precoParcelado || "";
+
+    if (modulesEl) {
+      modulesEl.innerHTML = C.modulos.map(function (m, i) {
+        return (
+          '<div class="module reveal">' +
+          '<span class="module__num">' + (i + 1) + '</span>' +
+          '<div>' +
+          '<p class="module__title">' + B.esc(m.titulo) + '</p>' +
+          '<p class="module__text">' + B.esc(m.texto) + '</p>' +
+          '</div>' +
+          '</div>'
+        );
+      }).join("");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   ADMIN — Área do Dono (protegida por senha simples: 1234).
+   SÓ AQUI aparecem os DADOS PESSOAIS do cliente (nome completo
+   e TELEFONE) + serviço, cabeleireiro, forma de pagamento,
+   dia e horário. No público (Agendamento) nada disso aparece.
+
+   ⚠️ SEGURANÇA (Fase 1): a "senha" é client-side (localStorage),
+   NÃO é proteção real — apenas evita exibição acidental na tela.
+   Qualquer dado sensível de verdade exige backend (Fase 2).
+
+   Segurança de render: todo campo do cliente é escapado (BARBER.esc)
+   e a ação de cancelar usa o id SINTÉTICO do agendamento via data-id
+   (nunca texto do cliente em atributo/onclick).
+   ========================================================= */
+(function () {
+  "use strict";
+
+  var B = window.BARBER;
+  var Store = window.BarberStore;
+  var UNLOCK_KEY = B.config.storagePrefix + "admin_unlocked";
+
+  var unlocked = false;
+  var els = {};
+
+  function isUnlocked() {
+    try { return window.sessionStorage.getItem(UNLOCK_KEY) === "1"; }
+    catch (e) { return unlocked; }
+  }
+  function setUnlocked(v) {
+    unlocked = v;
+    try {
+      if (v) window.sessionStorage.setItem(UNLOCK_KEY, "1");
+      else window.sessionStorage.removeItem(UNLOCK_KEY);
+    } catch (e) { /* memória apenas */ }
+  }
+
+  function labelServico(id) { var s = B.byId(B.servicos, id); return s ? s.nome : id; }
+  function labelCabeleireiro(id) { var c = B.byId(B.cabeleireiros, id); return c ? c.nome : id; }
+  function labelPagamento(id) { var p = B.byId(B.pagamentos, id); return p ? p.nome : id; }
+  function precoServico(id) { var s = B.byId(B.servicos, id); return s ? s.preco : 0; }
+
+  // Helpers de data centralizados em config.js (fonte única).
+  var formatDataBR = B.formatDataBR;
+  var todayISO = B.todayISO;
+
+  function sortAppts(list) {
+    return list.slice().sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+      return a.horario < b.horario ? -1 : (a.horario > b.horario ? 1 : 0);
+    });
+  }
+
+  function renderList() {
+    var list = sortAppts(Store.getAll());
+
+    // Estatísticas
+    var hoje = todayISO();
+    var totalHoje = list.filter(function (a) { return a.data === hoje; }).length;
+    var receitaPrevista = list.reduce(function (sum, a) { return sum + precoServico(a.servicoId); }, 0);
+    if (els.statTotal) els.statTotal.textContent = String(list.length);
+    if (els.statHoje) els.statHoje.textContent = String(totalHoje);
+    if (els.statReceita) els.statReceita.textContent = B.formatPreco(receitaPrevista);
+
+    if (!list.length) {
+      els.appts.innerHTML =
+        '<div class="appts-empty">Nenhum agendamento ainda. Assim que um cliente marcar, aparece aqui com todos os detalhes.</div>';
+      return;
+    }
+
+    els.appts.innerHTML = list.map(function (a) {
+      return (
+        '<article class="appt">' +
+        '<div class="appt__when">' + B.esc(a.horario) +
+        '<small>' + B.esc(formatDataBR(a.data)) + '</small></div>' +
+
+        '<div class="appt__who">' +
+        '<div class="appt__name">' + B.esc(a.nome) + '</div>' +
+        '<div class="appt__phone">' +
+        '<a href="tel:' + B.esc(String(a.telefone).replace(/[^\d+]/g, "")) + '">' + B.esc(a.telefone) + '</a>' +
+        '</div>' +
+        '</div>' +
+
+        '<div class="appt__detail">' +
+        '<div><span class="appt__field-label">Serviço</span> <strong>' + B.esc(labelServico(a.servicoId)) + '</strong></div>' +
+        '<div><span class="appt__field-label">Cabeleireiro</span> ' + B.esc(labelCabeleireiro(a.cabeleireiroId)) + '</div>' +
+        '<div><span class="appt__field-label">Pagamento</span> ' + B.esc(labelPagamento(a.pagamentoId)) + '</div>' +
+        '</div>' +
+
+        '<div class="appt__actions">' +
+        '<button type="button" class="btn btn--danger btn--small" data-cancel="' + B.esc(a.id) + '">Cancelar</button>' +
+        '</div>' +
+        '</article>'
+      );
+    }).join("");
+  }
+
+  function showPanel() {
+    els.lock.style.display = "none";
+    els.panel.classList.add("is-visible");
+    renderList();
+  }
+  function showLock() {
+    els.panel.classList.remove("is-visible");
+    els.lock.style.display = "";
+    // Defesa em profundidade: ao travar, remove do DOM os dados já renderizados
+    // (nome/telefone) — não basta esconder via CSS.
+    if (els.appts) els.appts.innerHTML = "";
+    if (els.pass) els.pass.value = "";
+    if (els.passError) els.passError.textContent = "";
+  }
+
+  function tryUnlock(e) {
+    if (e) e.preventDefault();
+    var val = els.pass.value;
+    if (val === B.config.adminPassword) {
+      setUnlocked(true);
+      showPanel();
+    } else {
+      els.passError.textContent = "Senha incorreta.";
+      els.pass.value = "";
+      els.pass.focus();
+    }
+  }
+
+  function init() {
+    els.lock = document.getElementById("admin-lock");
+    if (!els.lock) return;
+    els.form = document.getElementById("admin-lock-form");
+    els.pass = document.getElementById("admin-pass");
+    els.passError = document.getElementById("admin-pass-error");
+    els.panel = document.getElementById("admin-panel");
+    els.appts = document.getElementById("admin-appts");
+    els.statTotal = document.getElementById("stat-total");
+    els.statHoje = document.getElementById("stat-hoje");
+    els.statReceita = document.getElementById("stat-receita");
+
+    if (els.form) els.form.addEventListener("submit", tryUnlock);
+
+    var btnLock = document.getElementById("btn-lock");
+    if (btnLock) btnLock.addEventListener("click", function () { setUnlocked(false); showLock(); });
+
+    var btnClear = document.getElementById("btn-clear");
+    if (btnClear) btnClear.addEventListener("click", function () {
+      if (window.confirm("Apagar TODOS os agendamentos? Esta ação não pode ser desfeita.")) {
+        Store.clearAll();
+        renderList();
+        document.dispatchEvent(new CustomEvent("barber:store-changed"));
+        window.BarberUI.showToast("Agendamentos apagados.");
+      }
+    });
+
+    // Cancelar um agendamento (delegação por id sintético).
+    els.appts.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-cancel]");
+      if (!btn) return;
+      var id = btn.getAttribute("data-cancel");
+      if (window.confirm("Cancelar este agendamento? O horário fica livre de novo.")) {
+        Store.remove(id);
+        renderList();
+        document.dispatchEvent(new CustomEvent("barber:store-changed"));
+        window.BarberUI.showToast("Agendamento cancelado.");
+      }
+    });
+
+    // Se um novo agendamento entrar enquanto a área está aberta, atualiza.
+    document.addEventListener("barber:store-changed", function () {
+      if (els.panel.classList.contains("is-visible")) renderList();
+    });
+
+    // Ao abrir a aba do dono: mostra painel se já desbloqueado nesta sessão.
+    window.BarberNav.onViewChange(function (view) {
+      if (view !== "dono") return;
+      if (isUnlocked()) showPanel();
+      else { showLock(); if (els.pass) els.pass.focus(); }
+    });
+
+    // Estado inicial coerente (caso a página abra direto em #dono).
+    if (isUnlocked()) showPanel(); else showLock();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+  </script>
+  <script>
+/* =========================================================
+   MAIN — boot geral: ano do rodapé + scroll-reveal.
+   Roda por último (ver ordem dos <script> no index.html).
+   ========================================================= */
+(function () {
+  "use strict";
+
+  function init() {
+    var yearEl = document.getElementById("year");
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+    // Scroll-reveal (progressivo; sem JS, os .reveal ficam visíveis via <noscript>).
+    var revealables = document.querySelectorAll(".reveal");
+    if (!("IntersectionObserver" in window) || !revealables.length) {
+      revealables.forEach(function (el) { el.classList.add("is-visible"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+
+    revealables.forEach(function (el) { io.observe(el); });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+  </script>
+</body>
+</html>
