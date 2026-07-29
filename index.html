@@ -276,6 +276,10 @@ body {
   padding-block: var(--space-2);
 }
 
+/* Cabeçalho minimalista: só a logo, centralizada. O dock flutuante à
+   direita é a navegação única. A logo fica no centro real do cabeçalho. */
+.header__inner--centered { justify-content: center; }
+
 .logo {
   display: inline-flex;
   align-items: center;
@@ -305,6 +309,53 @@ body {
   text-transform: uppercase;
   color: var(--color-text-muted);
   margin-top: 2px;
+}
+
+/* ---------- Wordmark da marca (cabeçalho) ----------
+   Espelha a arte da camisa do dono: "BARBEARIA" + monograma EG +
+   assinatura "Erick Garcia", em dourado sobre preto, centralizado.
+   Placeholder TEXTUAL elevado — o PNG oficial em alta entra na Fase 2.
+   Mantém a classe .logo (o press-and-hold em .site-header .logo continua). */
+.logo--brand {
+  flex-direction: column;
+  gap: 0;
+  text-align: center;
+  padding-block: 4px;
+}
+.brandmark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.brandmark__top {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.58rem;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em; /* compensa o tracking para centralizar de fato */
+  text-transform: uppercase;
+  color: var(--color-gold-bright);
+}
+.brandmark__mono {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.7rem, 7vw, 2.15rem);
+  letter-spacing: 0.04em;
+  margin: 2px 0 1px;
+  color: var(--color-gold); /* fallback */
+  background: var(--grad-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.brandmark__sign {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  color: var(--color-gold-deep);
 }
 
 /* Abas de navegação (Agendar / Loja / Curso / Dono) */
@@ -948,31 +999,86 @@ body {
 .reveal--delay-2 { transition-delay: 180ms; }
 .reveal--delay-3 { transition-delay: 270ms; }
 
+/* ---------- DOCK DE NAVEGAÇÃO FLUTUANTE (navegação única) ----------
+   As 3 categorias (Agendar / Loja / Curso) fixas no canto direito,
+   sempre visíveis em MOBILE E DESKTOP: o topo ficou só com a logo, então
+   o dock é a única navegação do site (pedido do João). Preto+dourado.
+   z-index 45: acima do conteúdo, abaixo do modal (100) e do toast (120),
+   então qualquer pop-up cobre o dock. Reaproveita o handler global de
+   [data-target] do BarberNav; o realce ativo vem de nav-dock.js. */
+.nav-dock {
+  position: fixed;
+  top: 50%;
+  right: calc(env(safe-area-inset-right, 0px) + var(--space-2));
+  transform: translateY(-50%);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  background: rgba(12, 12, 13, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-gold-soft);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  animation: dock-in var(--duration-base) var(--ease-out) both;
+}
+.nav-dock__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 60px;
+  min-height: 56px;              /* alvo de toque > 44px */
+  padding: var(--space-2) 4px;
+  border-radius: var(--radius-full);
+  color: var(--color-gold);      /* dourado sobre fundo quase preto = ~9.3:1 (AA/AAA) */
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  transition: background var(--duration-fast), color var(--duration-fast), transform var(--duration-fast);
+}
+.nav-dock__btn svg { width: 20px; height: 20px; }
+.nav-dock__btn:hover { background: var(--color-gold-soft); color: var(--color-gold-bright); }
+.nav-dock__btn:active { transform: scale(0.94); }
+.nav-dock__btn.is-active {
+  background: var(--grad-gold);
+  color: var(--color-black);     /* preto sobre dourado = ~9.3:1 (AA/AAA) */
+}
+@keyframes dock-in {
+  from { opacity: 0; transform: translateY(-50%) translateX(18px); }
+  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+/* Dock visível em TODAS as telas (mobile E desktop): é a navegação única,
+   pois o topo passou a ter só a logo. NÃO ocultar no desktop. */
+/* Respeita quem pede menos movimento (Regra de acessibilidade). */
+@media (prefers-reduced-motion: reduce) {
+  .nav-dock { animation: none; }
+  .nav-dock__btn { transition: none; }
+}
+
 </style>
 </head>
 <body>
 
   <!-- ===================== HEADER / NAV ===================== -->
   <header class="site-header">
-    <div class="container header__inner">
-      <!-- Logo textual preto+dourado. Press-and-hold aqui abre a Área do Dono.
+    <div class="container header__inner header__inner--centered">
+      <!-- Cabeçalho minimalista: só a logo, centralizada. A navegação
+           (Agendar/Loja/Curso) vive exclusivamente no dock flutuante.
+           Logo textual preto+dourado. Press-and-hold aqui abre a Área do Dono.
            FASE 2: trocar por logo oficial quando chegar. -->
-      <a href="#agendar" class="logo" data-target="agendar" aria-label="Barbearia EG · Erick Garcia — início" title="Início (segure para a Área do Dono)">
-        <span class="logo__mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-            <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
-            <path d="M8.5 8.5 20 20M8.5 15.5 20 4" stroke-linecap="round"/>
-          </svg>
+      <a href="#agendar" class="logo logo--brand" data-target="agendar" aria-label="Barbearia EG · Erick Garcia — início" title="Início (segure para a Área do Dono)">
+        <span class="brandmark" aria-hidden="true">
+          <span class="brandmark__top">BARBEARIA</span>
+          <span class="brandmark__mono">EG</span>
+          <span class="brandmark__sign">Erick Garcia</span>
         </span>
-        <span>BARBEARIA EG<span class="logo__accent">.</span><small>Erick Garcia</small></span>
       </a>
-
-      <!-- Sem aba "Área do Dono": o acesso é por press-and-hold na logo. -->
-      <nav class="tabs" aria-label="Navegação principal">
-        <button class="tab is-active" data-target="agendar" aria-current="page">Agendar</button>
-        <button class="tab" data-target="loja" aria-current="false">Loja</button>
-        <button class="tab" data-target="curso" aria-current="false">Curso</button>
-      </nav>
     </div>
   </header>
 
@@ -1126,6 +1232,40 @@ body {
       <p class="footer__note">Protótipo (Fase 1) — unidades, serviços, preços, equipe, produtos, curso e contatos marcados "FASE 2" são placeholders, a serem substituídos pelos dados reais do cliente.</p>
     </div>
   </footer>
+
+  <!-- ============================================================
+       DOCK DE NAVEGAÇÃO FLUTUANTE — navegação ÚNICA (mobile E desktop).
+       As 3 categorias (Agendar / Loja / Curso) sempre visíveis no canto
+       direito, para não sair da vista do cliente (pedido do João).
+       O topo ficou só com a logo; toda a navegação vive aqui.
+       A navegação em si reaproveita o handler global de [data-target]
+       do BarberNav; o realce da área ativa é sincronizado por
+       nav-dock.js. Direct child do body -> fixo ao viewport e
+       persistente entre as views.
+       ============================================================ -->
+  <nav class="nav-dock" aria-label="Navegação rápida">
+    <button class="nav-dock__btn is-active" data-target="agendar" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <rect x="3" y="4.5" width="18" height="16" rx="2"/>
+        <path d="M3 9h18M8 2.5v4M16 2.5v4" stroke-linecap="round"/>
+      </svg>
+      <span>Agendar</span>
+    </button>
+    <button class="nav-dock__btn" data-target="loja" aria-current="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <path d="M4 8h16l-1 12H5L4 8Z"/>
+        <path d="M8.5 8V6.5a3.5 3.5 0 0 1 7 0V8" stroke-linecap="round"/>
+      </svg>
+      <span>Loja</span>
+    </button>
+    <button class="nav-dock__btn" data-target="curso" aria-current="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <path d="M12 4 2.5 9 12 14l9.5-5L12 4Z"/>
+        <path d="M6.5 11v4.5c0 1 2.5 2.5 5.5 2.5s5.5-1.5 5.5-2.5V11M21.5 9v4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Curso</span>
+    </button>
+  </nav>
 
   <!-- JS vanilla, sem dependências. Ordem importa:
        config (dados/helpers) -> storage -> ui -> nav -> módulos de área -> main. -->
@@ -3312,6 +3452,42 @@ body {
   document.addEventListener("DOMContentLoaded", init);
 })();
 
+</script>
+<!-- ===== nav-dock.js (realce do dock flutuante de navegação) ===== -->
+<script>
+/* Sincroniza o realce (is-active/aria-current) dos botões do dock
+   flutuante com a view ativa. A NAVEGAÇÃO em si já é tratada pelo
+   handler global de [data-target] do BarberNav — aqui só refletimos
+   qual das 3 áreas está aberta. Quando a view é "dono" (área oculta),
+   nenhum botão fica ativo, o que é o comportamento correto. */
+(function () {
+  "use strict";
+  var VALID = ["agendar", "loja", "curso"];
+
+  function sync(view) {
+    document.querySelectorAll(".nav-dock__btn").forEach(function (b) {
+      var on = b.getAttribute("data-target") === view;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-current", on ? "page" : "false");
+    });
+  }
+
+  function boot() {
+    if (window.BarberNav && typeof window.BarberNav.onViewChange === "function") {
+      window.BarberNav.onViewChange(sync);
+    }
+    // Estado inicial (o setActive do BarberNav pode já ter rodado antes
+    // deste listener existir, então garantimos o realce na carga).
+    var h = (window.location.hash || "").replace("#", "");
+    sync(VALID.indexOf(h) !== -1 ? h : "agendar");
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
 </script>
 </body>
 </html>
