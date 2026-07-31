@@ -1186,13 +1186,17 @@ body {
             <p class="muted" style="margin:.5rem 0 1.5rem;">Acesso restrito. Aqui ficam os dados de cada cliente e o painel de edição.</p>
             <form id="admin-lock-form">
               <div class="field">
+                <label class="field__label sr-only" for="admin-email">E-mail</label>
+                <input class="control" type="email" id="admin-email" placeholder="E-mail do dono" autocomplete="username" />
+              </div>
+              <div class="field">
                 <label class="field__label sr-only" for="admin-pass">Senha</label>
-                <input class="control" type="password" id="admin-pass" placeholder="Senha" autocomplete="off" />
+                <input class="control" type="password" id="admin-pass" placeholder="Senha" autocomplete="current-password" />
                 <span class="field__error" id="admin-pass-error" aria-live="polite"></span>
               </div>
               <button type="submit" class="btn btn--primary btn--block">Entrar</button>
             </form>
-            <p class="muted" style="font-size:.78rem;margin-top:1rem;">Senha padrão <strong>1234</strong> — troque no painel.</p>
+            <p class="muted" style="font-size:.78rem;margin-top:1rem;">Acesso exclusivo do dono, com login protegido. Os dados dos clientes só aparecem para o dono autenticado.</p>
           </div>
         </div>
         <!-- Painel (preenchido por admin.js) -->
@@ -1290,9 +1294,18 @@ body {
     // Prefixo de todas as chaves no localStorage (isolamento por origem).
     storagePrefix: "barber_",
 
-    // Senha PADRÃO da Área do Dono. O dono pode trocar no
-    // painel; a senha ativa fica em localStorage (barber_admin_pass).
+    // Senha PADRÃO da Área do Dono (só usada no fallback local, quando a nuvem
+    // está off; no modo real o acesso é por login Firebase).
     adminPassword: "1234",
+
+    // ─────────────────────────────────────────────────────────────────────
+    // MODO DEMONSTRAÇÃO. true = vitrine DESATIVADA: o Erick navega e vê tudo
+    // (wizard + painel com lista mockada + teaser), mas NADA real acontece no
+    // agendamento — sem login, sem gravar ocupação/privado na nuvem, sem ntfy,
+    // sem PII. Config/loja/curso/novidade/favicon seguem reais. Na ATIVAÇÃO
+    // (pós-pagamento) o Atlas vira para false e liga o modo real já construído.
+    demoMode: true,
+    // ─────────────────────────────────────────────────────────────────────
 
     // Identidade (preto + dourado).
     brandName: "Erick Garcia",
@@ -1536,8 +1549,21 @@ body {
     }
   };
 
+  var _lastDemoToast = 0;
   function notify() {
     try { document.dispatchEvent(new CustomEvent("barber:config-changed")); } catch (e) {}
+    // MODO DEMONSTRAÇÃO: a edição reflete na tela (feel) mas NÃO é publicada na
+    // nuvem (o push é bloqueado em cloud-sync) e reverte ao recarregar. Avisa o
+    // usuário — exceto quando a chamada vem do INGEST da nuvem (applying=true),
+    // que não é edição do visitante. Throttle p/ não repetir em saves múltiplos.
+    if (CONFIG.demoMode) {
+      var ingest = false;
+      try { ingest = !!(window.BARBER && window.BARBER.cloud && window.BARBER.cloud.isApplying && window.BARBER.cloud.isApplying()); } catch (e) {}
+      if (!ingest && Date.now() - _lastDemoToast > 1500) {
+        _lastDemoToast = Date.now();
+        try { if (window.BarberUI && window.BarberUI.showToast) window.BarberUI.showToast("Modo demonstração — alterações não são salvas."); } catch (e) {}
+      }
+    }
   }
 
   // ---- Helpers globais ----------------------------------------------------
@@ -1647,6 +1673,7 @@ body {
 <!-- ═══ FIREBASE SDK (versão TRAVADA 10.14.1 — nunca usar tag flutuante) ══ -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <!-- ===== cloud-sync.js — publicação global das edições do dono ===== -->
 <script>
 /* =========================================================
@@ -1677,14 +1704,22 @@ body {
     databaseURL: "https://varanda-lanches-jc998-default-rtdb.firebaseio.com",
     projectId:   "varanda-lanches-jc998"
   };
-  var CLOUD_NODE   = "barber_eg";                                       // nó próprio, isolado
+  var CLOUD_NODE   = "barber_eg";                                       // nó público (config + ocupação)
+  var PRIV_NODE    = "barber_eg_priv";                                  // nó PRIVADO (dados completos, read só do dono)
   var CLOUD_SECRET = "c8ca64e6418f9206ff91370395d12b55483e7c08826b1d1a"; // _k exclusivo do barber (casa com database.rules.json)
   var PHOTO_MAX_BYTES = 92160;                                          // 90KB — CAP DURO (casa com .validate)
+
+  // ↓↓↓ ATLAS PREENCHE (ver LISTA DE MATERIAIS) ↓↓↓
+  var OWNER_UID  = "COLE_AQUI_OWNER_UID"; // uid do Erick no Firebase Auth (fixa a regra .read do nó privado)
+  var NTFY_URL   = "https://ntfy.sh";     // servidor ntfy (padrão público)
+  var NTFY_TOPIC = "COLE_AQUI_NTFY_TOPIC";// tópico ntfy do Erick (ele instala o app e assina esse tópico)
+  // ↑↑↑ ATLAS PREENCHE ↑↑↑
   // ══════════════════════════════════════════════════════════════════════
 
   var PREFIX  = B.config.storagePrefix;
   var enabled = FIREBASE_CONFIG.databaseURL.indexOf("COLE_AQUI") === -1;
   var ref = null, applying = false, pushTimer = null;
+  var auth = null, ownerUser = null, privRef = null, privAppts = [];
 
   function lsGet(key)      { try { return window.localStorage.getItem(PREFIX + key); } catch (e) { return null; } }
   function lsSetJSON(key, v) { try { window.localStorage.setItem(PREFIX + key, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1703,10 +1738,14 @@ body {
       _k:            CLOUD_SECRET,
       _updatedAt:    Date.now()
     };
+    // fotoDono/novidade são opcionais: null EXPLÍCITO quando ausentes, para que o
+    // update() (abaixo) DELETE a chave em vez de deixá-la órfã. Publicamos config
+    // via update() e NÃO via set() justamente para preservar o sub-nó de
+    // /barber_eg/agendamentos (ocupação) e os demais dados reais já existentes.
     var foto = lsGet("cfg_foto_dono"); // só publica override, e só se couber no cap
-    if (foto && foto.length <= PHOTO_MAX_BYTES && /^data:image\//.test(foto)) st.fotoDono = foto;
+    st.fotoDono = (foto && foto.length <= PHOTO_MAX_BYTES && /^data:image\//.test(foto)) ? foto : null;
     var nov = B.data.getNovidade(); // só publica se houver destino definido
-    if (nov && nov.tipo) st.novidade = nov;
+    st.novidade = (nov && nov.tipo) ? nov : null;
     return st;
   }
 
@@ -1736,16 +1775,37 @@ body {
         // Novidade removida em outro aparelho → limpa local para o balão sumir em todos.
         try { window.localStorage.removeItem(PREFIX + "cfg_novidade"); } catch (e) {}
       }
+      // OCUPAÇÃO cross-device (sub-nó agendamentos) → disponibilidade em tempo real.
+      // NÃO é config (não vai para cfg_*): só unidadeId/cabeleireiroId/data/horario/
+      // duração/1º nome. Achata a árvore {cab}/{data}/{slot} numa lista p/ o Store.
+      var occ = [];
+      var ag = st.agendamentos;
+      if (ag && typeof ag === "object") {
+        for (var cab in ag) { if (!ag.hasOwnProperty(cab) || !ag[cab] || typeof ag[cab] !== "object") continue;
+          for (var data in ag[cab]) { if (!ag[cab].hasOwnProperty(data) || !ag[cab][data] || typeof ag[cab][data] !== "object") continue;
+            for (var sk in ag[cab][data]) { if (!ag[cab][data].hasOwnProperty(sk)) continue;
+              var s = ag[cab][data][sk]; if (!s || typeof s !== "object") continue;
+              occ.push({ cabeleireiroId: cab, data: data, horario: String(s.h || ""), duracao: Number(s.d) || 0, primeiroNome: String(s.n || ""), unidadeId: String(s.u || "") });
+            }
+          }
+        }
+      }
+      if (window.BarberStore && window.BarberStore.setCloud) window.BarberStore.setCloud(occ);
       document.dispatchEvent(new CustomEvent("barber:config-changed")); // enquanto applying=true (não ecoa push)
     } catch (e) {}
     applying = false;
   }
 
   function schedulePush() {
+    // MODO DEMONSTRAÇÃO: nunca publica config na nuvem. Edições do visitante
+    // refletem só localmente (efêmero) e revertem ao recarregar (applyRemote
+    // reescreve do cloud real). Blinda os dados reais do Erick contra alteração.
+    if (B.config.demoMode) return;
     if (!enabled || !ref || applying) return; // não republica mudança vinda da própria nuvem
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(function () {
-      try { ref.set(buildState()); } catch (e) {}
+      // update() (merge) — não toca em /barber_eg/agendamentos nem apaga dados reais.
+      try { ref.update(buildState()); } catch (e) {}
     }, 600);
   }
 
@@ -1757,10 +1817,142 @@ body {
       ref = firebase.database().ref(CLOUD_NODE);
       ref.on("value", function (snap) { applyRemote(snap.val()); });
       document.addEventListener("barber:config-changed", schedulePush);
+      // Login real do dono: ao autenticar, assina o nó PRIVADO (read exige
+      // auth.uid == OWNER_UID nas regras) e alimenta o painel com dados completos.
+      if (firebase.auth) { auth = firebase.auth(); auth.onAuthStateChanged(handleAuth); }
     } catch (e) { /* falha de nuvem nunca pode derrubar o site */ }
   }
 
-  B.cloud = { enabled: function () { return enabled; }, photoMaxBytes: PHOTO_MAX_BYTES, node: CLOUD_NODE };
+  // Reserva ATÔMICA de horário na nuvem (anti-corrida cross-device). Transação no
+  // dia do cabeleireiro: checa sobreposição de intervalo e, se livre, insere.
+  // Grava SOMENTE dados públicos (u/h/d/n) — NUNCA telefone/nome completo (LGPD).
+  function sanKey(v) { return String(v == null ? "" : v).replace(/[.#$\[\]\/\s]/g, "_"); }
+  function reservar(appt, cb) {
+    cb = cb || function () {};
+    if (!enabled || !ref) { cb({ status: "nocloud" }); return; }
+    try {
+      var cab = sanKey(appt.cabeleireiroId), data = sanKey(appt.data);
+      var slotK = String(appt.horario || "").replace(/:/g, "-");
+      var inicio = B.hmToMin(appt.horario);
+      var dur = Number(appt.duracao) || B.config.folgaSlot;
+      var fim = inicio + dur;
+      var dayRef = ref.child("agendamentos").child(cab).child(data);
+      dayRef.transaction(function (cur) {
+        cur = cur || {};
+        for (var k in cur) {
+          if (!cur.hasOwnProperty(k)) continue;
+          var s = cur[k]; if (!s || typeof s !== "object") continue;
+          var sIni = B.hmToMin(s.h), sFim = sIni + (Number(s.d) || B.config.folgaSlot);
+          if (inicio < sFim && sIni < fim) return; // sobreposição → aborta (undefined)
+        }
+        cur[slotK] = { u: String(appt.unidadeId || ""), h: String(appt.horario || ""), d: dur, n: B.primeiroNome(appt.nome) };
+        return cur;
+      }, function (err, committed) {
+        if (err) { cb({ status: "error" }); return; }
+        if (!committed) { cb({ status: "taken" }); return; }
+        // Dados COMPLETOS no nó PRIVADO (read protegido por auth do dono; write do
+        // cliente não-auth é aceito com .validate rígido). Mesmo ato da reserva.
+        try {
+          firebase.database().ref(PRIV_NODE).child(cab).child(data).child(slotK).set({
+            nome:           String(appt.nome || ""),
+            telefone:       String(appt.telefone || ""),
+            unidadeId:      String(appt.unidadeId || ""),
+            cabeleireiroId: String(appt.cabeleireiroId || ""),
+            pagamentoId:    String(appt.pagamentoId || ""),
+            data:           String(appt.data || ""),
+            horario:        String(appt.horario || ""),
+            duracao:        dur,
+            precoTotal:     Number(appt.precoTotal) || 0,
+            criadoEm:       new Date().toISOString(),
+            servicos:       (appt.servicosSnap || []).map(function (s) { return { nome: String(s.nome || ""), preco: Number(s.preco) || 0 }; })
+          });
+        } catch (e) {}
+        notifyNtfy(B.primeiroNome(appt.nome)); // notificação SEM PII (só 1º nome)
+        cb({ status: "ok" });
+      });
+    } catch (e) { cb({ status: "error" }); }
+  }
+
+  // ntfy: POST simples "Novo agendamento de [1º nome]" — SEM telefone/PII (o
+  // tópico é visível no fonte). Fire-and-forget; falha não afeta o agendamento.
+  function notifyNtfy(primeiroNome) {
+    if (!NTFY_TOPIC || NTFY_TOPIC.indexOf("COLE_AQUI") !== -1) return;
+    try {
+      fetch(NTFY_URL.replace(/\/+$/, "") + "/" + encodeURIComponent(NTFY_TOPIC), {
+        method: "POST",
+        body: "Novo agendamento de " + (primeiroNome || "cliente")
+      });
+    } catch (e) {}
+  }
+
+  // ---- AUTH do dono + nó PRIVADO ----------------------------------------
+  function isOwner() { return !!(ownerUser && (OWNER_UID.indexOf("COLE_AQUI") !== -1 || ownerUser.uid === OWNER_UID)); }
+
+  function flattenPriv(tree) {
+    var out = [];
+    if (!tree || typeof tree !== "object") return out;
+    for (var cab in tree) { if (!tree.hasOwnProperty(cab) || !tree[cab] || typeof tree[cab] !== "object") continue;
+      for (var data in tree[cab]) { if (!tree[cab].hasOwnProperty(data) || !tree[cab][data] || typeof tree[cab][data] !== "object") continue;
+        for (var sk in tree[cab][data]) { if (!tree[cab][data].hasOwnProperty(sk)) continue;
+          var a = tree[cab][data][sk]; if (!a || typeof a !== "object") continue;
+          out.push({
+            cabeleireiroId: cab, data: String(a.data || data), horario: String(a.horario || ""),
+            nome: String(a.nome || ""), telefone: String(a.telefone || ""),
+            unidadeId: String(a.unidadeId || ""), pagamentoId: String(a.pagamentoId || ""),
+            duracao: Number(a.duracao) || 0, precoTotal: Number(a.precoTotal) || 0,
+            servicosSnap: Array.isArray(a.servicos) ? a.servicos : [], criadoEm: String(a.criadoEm || "")
+          });
+        }
+      }
+    }
+    return out;
+  }
+
+  function subscribePriv() {
+    if (privRef || !ownerUser) return;
+    try {
+      privRef = firebase.database().ref(PRIV_NODE);
+      privRef.on("value", function (snap) {
+        privAppts = flattenPriv(snap.val());
+        document.dispatchEvent(new CustomEvent("barber:priv-changed"));
+      }, function () { privAppts = []; document.dispatchEvent(new CustomEvent("barber:priv-changed")); });
+    } catch (e) {}
+  }
+  function unsubscribePriv() {
+    try { if (privRef) privRef.off(); } catch (e) {}
+    privRef = null; privAppts = [];
+  }
+
+  function handleAuth(user) {
+    ownerUser = user || null;
+    if (ownerUser) subscribePriv(); else unsubscribePriv();
+    document.dispatchEvent(new CustomEvent("barber:auth-changed"));
+    document.dispatchEvent(new CustomEvent("barber:priv-changed"));
+  }
+
+  var authApi = {
+    available: function () { return !!auth; },
+    user:      function () { return ownerUser; },
+    isOwner:   isOwner,
+    signIn:    function (email, pass, cb) {
+      cb = cb || function () {};
+      if (!auth) { cb(new Error("auth-indisponivel")); return; }
+      auth.signInWithEmailAndPassword(String(email || "").trim(), String(pass || ""))
+        .then(function () { cb(null); })
+        .catch(function (err) { cb(err || new Error("falha")); });
+    },
+    signOut:   function (cb) { cb = cb || function () {}; try { if (auth) auth.signOut().then(function () { cb(null); }).catch(function () { cb(null); }); else cb(null); } catch (e) { cb(null); } }
+  };
+
+  B.cloud = {
+    enabled: function () { return enabled; },
+    photoMaxBytes: PHOTO_MAX_BYTES,
+    node: CLOUD_NODE,
+    reservar: reservar,
+    auth: authApi,
+    getPrivateAppts: function () { return privAppts.slice(); },
+    isApplying: function () { return applying; } // true durante o ingest da nuvem (não é edição do usuário)
+  };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
@@ -1808,6 +2000,15 @@ body {
     try { window.localStorage.setItem(KEY, JSON.stringify(list)); return true; }
     catch (e) { return false; }
   }
+
+  // Ocupação vinda da NUVEM (cross-device). Contém SOMENTE dados públicos de
+  // disponibilidade: unidadeId, cabeleireiroId, data, horario, duracao e o 1º
+  // nome (para o "10:00 riscado + nome"). NUNCA telefone/nome completo (LGPD).
+  // Alimentada por cloud-sync.applyRemote via setCloud.
+  var cloud = [];
+  function setCloud(list) { cloud = Array.isArray(list) ? list : []; }
+  function allMerged() { return cloud.length ? getAll().concat(cloud) : getAll(); }
+
   function genId() {
     return "a_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
   }
@@ -1820,8 +2021,9 @@ body {
   }
 
   // Agendamentos de um dia para um cabeleireiro (ordenados por início).
+  // Considera LOCAL (cache) + NUVEM (cross-device) — disponibilidade em tempo real.
   function apptsDoDia(data, cabeleireiroId) {
-    return getAll().filter(function (a) {
+    return allMerged().filter(function (a) {
       return a.data === data && a.cabeleireiroId === cabeleireiroId;
     }).sort(function (x, y) { return apptInicio(x) - apptInicio(y); });
   }
@@ -1869,6 +2071,7 @@ body {
   window.BarberStore = {
     KEY: KEY,
     getAll: getAll,
+    setCloud: setCloud,
     apptsDoDia: apptsDoDia,
     intervaloLivre: intervaloLivre,
     startMap: startMap,
@@ -2353,7 +2556,8 @@ body {
       var min = B.hmToMin(h);
       var appt = starts[h];
       if (appt) {
-        var nome = B.esc(B.primeiroNome(appt.nome));
+        // Cloud traz só o 1º nome (appt.primeiroNome); local tem nome completo.
+        var nome = B.esc(appt.primeiroNome || B.primeiroNome(appt.nome));
         return '<div class="wz-slot wz-slot--taken" aria-disabled="true" aria-label="' + B.esc(h) + ' ocupado">' +
                '<span class="wz-slot__t">' + B.esc(h) + '</span><span class="wz-slot__n">' + nome + '</span></div>';
       }
@@ -2558,18 +2762,44 @@ body {
       data: state.data,
       horario: state.horario
     };
-    var res = Store.add(appt);
-    if (!res.ok) {
-      if (res.reason === "taken") {
-        UI.showToast("Esse horário acabou de ser reservado. Escolha outro.");
-        state.horario = null; state.step = 4; render();
-      } else {
-        UI.showToast("Não foi possível salvar. Tente novamente.");
+    // MODO DEMONSTRAÇÃO: NÃO grava na nuvem (ocupação/privado), NÃO faz POST ntfy,
+    // NÃO expõe PII. Marca só em localStorage (mostra o "riscado" NESTE aparelho)
+    // e conclui com nota de demonstração.
+    if (B.config.demoMode) {
+      var resD = Store.add(appt);
+      if (!resD.ok) {
+        if (resD.reason === "taken") { UI.showToast("Esse horário acabou de ser reservado. Escolha outro."); state.horario = null; state.step = 4; render(); }
+        else { UI.showToast("Não foi possível salvar. Tente novamente."); }
+        return;
       }
+      document.dispatchEvent(new CustomEvent("barber:store-changed"));
+      showDone(resD.appt);
       return;
     }
-    document.dispatchEvent(new CustomEvent("barber:store-changed"));
-    showDone(res.appt);
+
+    // RESERVA ATÔMICA NA NUVEM (anti-duplo-agendamento cross-device). A ocupação
+    // publicada contém só dados públicos (1º nome). A entrega dos dados COMPLETOS
+    // ao dono está PAUSADA aguardando o escopo final (painel + notificação).
+    B.cloud.reservar(appt, function (r) {
+      if (r.status === "taken") {
+        UI.showToast("Esse horário acabou de ser reservado em outro aparelho. Escolha outro.");
+        state.horario = null; state.step = 4; render();
+        return;
+      }
+      // ok / nocloud / error → grava LOCAL (cache) e conclui (degrada se a nuvem cair).
+      var res = Store.add(appt);
+      if (!res.ok) {
+        if (res.reason === "taken") {
+          UI.showToast("Esse horário acabou de ser reservado. Escolha outro.");
+          state.horario = null; state.step = 4; render();
+        } else {
+          UI.showToast("Não foi possível salvar. Tente novamente.");
+        }
+        return;
+      }
+      document.dispatchEvent(new CustomEvent("barber:store-changed"));
+      showDone(res.appt);
+    });
   }
 
   function showDone(appt) {
@@ -2587,6 +2817,7 @@ body {
           (u ? '<br>' + B.esc(u.nome) : "") +
         '</p>' +
         '<p class="wz-done__note">Te esperamos! O pagamento é no local.</p>' +
+        (B.config.demoMode ? '<p class="wz-done__note" style="color:var(--color-gold);margin-top:.4rem;">Demonstração — nenhum agendamento real foi registrado. O sistema é ativado após a contratação.</p>' : '') +
       '</div>'
     );
     modal.setFooter(
@@ -2890,7 +3121,13 @@ body {
   var currentTab = "agenda-list";
 
   /* ---------- Sessão / trava ---------- */
+  // authMode = login real (Firebase Auth) disponível. Fora dele (nuvem off /
+  // front-only), cai no fallback local por sessão (senha 1234) só para não travar
+  // o desenvolvimento — em produção com nuvem ativa, o acesso exige login real.
+  function authMode() { return !!(B.cloud && B.cloud.enabled && B.cloud.enabled() && B.cloud.auth && B.cloud.auth.available()); }
   function isUnlocked() {
+    if (B.config.demoMode) return true; // demo: painel abre direto (sem login), com dados mockados
+    if (authMode()) return B.cloud.auth.isOwner();
     try { return window.sessionStorage.getItem(UNLOCK_KEY) === "1"; } catch (e) { return false; }
   }
   function setUnlocked(v) {
@@ -2934,7 +3171,7 @@ body {
     { id: "unidades", nome: "Agenda & Unidades" },
     { id: "novidade", nome: "Novidade do Dia" },
     { id: "contato", nome: "Contato & Rodapé" },
-    { id: "senha", nome: "Senha" }
+    { id: "plus", nome: "Gerenciamento Geral" }
   ];
 
   function renderPanel() {
@@ -2960,7 +3197,10 @@ body {
       var t = e.target.closest("[data-tab]");
       if (t) { currentTab = t.getAttribute("data-tab"); renderPanel(); return; }
       var lock = e.target.closest("#btn-lock");
-      if (lock) { setUnlocked(false); showLock(); }
+      if (lock) {
+        if (authMode()) { B.cloud.auth.signOut(function () { showLock(); }); showLock(); }
+        else { setUnlocked(false); showLock(); }
+      }
     });
 
     renderTab();
@@ -2973,7 +3213,7 @@ body {
     if (currentTab === "unidades") return renderUnidades();
     if (currentTab === "novidade") return renderNovidade();
     if (currentTab === "contato") return renderContato();
-    if (currentTab === "senha") return renderSenha();
+    if (currentTab === "plus") return renderPlus();
   }
 
   /* ========================================================
@@ -2986,8 +3226,34 @@ body {
     });
   }
 
+  // Próximos agendamentos (nó PRIVADO, dono logado): só futuros, do mais próximo
+  // ao mais distante. É a "lista simples" pedida — sem dashboard/gráfico.
+  function upcomingCloud() {
+    var hoje = B.todayISO();
+    return B.cloud.getPrivateAppts()
+      .filter(function (a) { return String(a.data) >= hoje; })
+      .sort(function (a, b) {
+        if (a.data !== b.data) return a.data < b.data ? -1 : 1;
+        return a.horario < b.horario ? -1 : (a.horario > b.horario ? 1 : 0);
+      });
+  }
+
+  // Agendamentos FICTÍCIOS para o MODO DEMONSTRAÇÃO (nada real, só ilustra o painel).
+  function mockAppts() {
+    var t = B.todayISO();
+    return [
+      { data: t, horario: "10:40", nome: "Bruno Alves", telefone: "(15) 99876-5432", unidadeId: "cerrado", cabeleireiroId: "erick", pagamentoId: "pix", servicosSnap: [{ nome: "Corte + Barba", preco: 60 }], duracao: 40, precoTotal: 60 },
+      { data: t, horario: "15:20", nome: "Diego Martins", telefone: "(15) 99123-4567", unidadeId: "cerrado", cabeleireiroId: "nene", pagamentoId: "dinheiro", servicosSnap: [{ nome: "Corte de Cabelo", preco: 40 }], duracao: 40, precoTotal: 40 },
+      { data: B.addDaysISO(t, 1), horario: "09:20", nome: "Rafael Souza", telefone: "(15) 99555-1200", unidadeId: "cerrado", cabeleireiroId: "erick", pagamentoId: "credito", servicosSnap: [{ nome: "Corte + Barba", preco: 60 }, { nome: "Sobrancelha", preco: 15 }], duracao: 60, precoTotal: 75 },
+      { data: B.addDaysISO(t, 3), horario: "17:00", nome: "Lucas Pereira", telefone: "(15) 99777-8080", unidadeId: "cerrado", cabeleireiroId: "nene", pagamentoId: "pix", servicosSnap: [{ nome: "Pezinho / Acabamento", preco: 20 }], duracao: 20, precoTotal: 20 }
+    ];
+  }
+
   function renderAgendamentos() {
-    var list = sortAppts(Store.getAll());
+    var demo = B.config.demoMode;
+    var usingCloud = !demo && authMode();
+    var readonly = demo || usingCloud; // demo e nuvem: lista read-only (sem cancelar/limpar)
+    var list = demo ? sortAppts(mockAppts()) : (usingCloud ? upcomingCloud() : sortAppts(Store.getAll()));
     var hoje = B.todayISO();
     var totalHoje = list.filter(function (a) { return a.data === hoje; }).length;
     var receita = list.reduce(function (s, a) { return s + apptPreco(a); }, 0);
@@ -2995,16 +3261,16 @@ body {
     var toolbar =
       '<div class="admin-toolbar">' +
         '<div class="admin-stats">' +
-          '<div class="stat"><div class="stat__value">' + list.length + '</div><div class="stat__label">Total</div></div>' +
+          '<div class="stat"><div class="stat__value">' + list.length + '</div><div class="stat__label">' + (readonly ? 'Próximos' : 'Total') + '</div></div>' +
           '<div class="stat"><div class="stat__value">' + totalHoje + '</div><div class="stat__label">Hoje</div></div>' +
           '<div class="stat"><div class="stat__value">' + B.formatPreco(receita) + '</div><div class="stat__label">Previsto</div></div>' +
         '</div>' +
-        '<button type="button" class="btn btn--danger btn--small" data-act="clear-appts">Limpar tudo</button>' +
+        (readonly ? '' : '<button type="button" class="btn btn--danger btn--small" data-act="clear-appts">Limpar tudo</button>') +
       '</div>';
 
     var body;
     if (!list.length) {
-      body = '<div class="appts-empty">Nenhum agendamento ainda. Assim que um cliente marcar, aparece aqui com todos os detalhes.</div>';
+      body = '<div class="appts-empty">Nenhum agendamento nos próximos dias. Assim que um cliente marcar, aparece aqui com todos os detalhes.</div>';
     } else {
       body = '<div class="appts">' + list.map(function (a) {
         return (
@@ -3022,9 +3288,10 @@ body {
               '<div><span class="appt__field-label">Profissional</span> ' + B.esc(labelCabeleireiro(a.cabeleireiroId)) + '</div>' +
               '<div><span class="appt__field-label">Pagamento</span> ' + B.esc(labelPagamento(a.pagamentoId)) + '</div>' +
             '</div>' +
+            (readonly ? '' :
             '<div class="appt__actions">' +
               '<button type="button" class="btn btn--danger btn--small" data-cancel="' + B.esc(a.id) + '">Cancelar</button>' +
-            '</div>' +
+            '</div>') +
           '</article>'
         );
       }).join("") + '</div>';
@@ -3033,12 +3300,21 @@ body {
     var privacy =
       '<div class="privacy-note">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z" stroke-linejoin="round"/></svg>' +
-        '<span>Nome e telefone dos clientes aparecem <strong>somente aqui</strong>, neste aparelho (localStorage). A senha é uma trava de tela de acesso rápido.</span>' +
+        '<span>' + (demo
+          ? 'Exemplo de <strong>demonstração</strong> — dados fictícios. Na versão ativada, aqui aparecem os agendamentos reais dos clientes (nome e telefone), visíveis só para você.'
+          : (usingCloud
+            ? 'Próximos agendamentos com nome e telefone do cliente — visíveis <strong>só para você</strong> (dados protegidos por login; leitura bloqueada para o público).'
+            : 'Nome e telefone dos clientes aparecem <strong>somente aqui</strong>, neste aparelho (localStorage).')) +
+        '</span>' +
       '</div>';
 
     els.content.innerHTML = toolbar + body + privacy;
 
-    els.content.querySelector('[data-act="clear-appts"]').addEventListener("click", function () {
+    if (readonly) { els.content.onclick = null; return; }
+
+    // Fallback local (nuvem off): mantém limpar/cancelar sobre o cache local.
+    var clearBtn = els.content.querySelector('[data-act="clear-appts"]');
+    if (clearBtn) clearBtn.addEventListener("click", function () {
       UI.confirmModal("Apagar TODOS os agendamentos? Esta ação não pode ser desfeita.", function () {
         Store.clearAll();
         document.dispatchEvent(new CustomEvent("barber:store-changed"));
@@ -3046,7 +3322,6 @@ body {
         renderAgendamentos();
       }, { danger: true, yesLabel: "Apagar tudo" });
     });
-
     els.content.onclick = function (e) {
       var btn = e.target.closest("[data-cancel]");
       if (!btn) return;
@@ -3593,6 +3868,63 @@ body {
   }
 
   /* ========================================================
+     TAB — GERENCIAMENTO GERAL (TEASER do plano Plus — TRANCADO)
+     Vitrine de upsell: dashboard com dados 100% MOCKADOS (nenhum dado real,
+     nenhum cálculo, nenhuma nuvem), conteúdo borrado + faixa "Plus (fechado)".
+     Microinteração: shimmer do cadeado (animação) + hover/toast do CTA.
+     ======================================================== */
+  function renderPlus() {
+    var bars = [{ m: "Mar", v: 78 }, { m: "Abr", v: 96 }, { m: "Mai", v: 110 }, { m: "Jun", v: 104 }, { m: "Jul", v: 121 }, { m: "Ago", v: 128 }];
+    var max = 128;
+    var barsSvg = bars.map(function (b, i) {
+      var h = Math.round(b.v / max * 90);
+      var x = 14 + i * 47;
+      return '<rect x="' + x + '" y="' + (108 - h) + '" width="30" height="' + h + '" rx="4" fill="url(#plusGold)"></rect>' +
+             '<text x="' + (x + 15) + '" y="' + (103 - h) + '" text-anchor="middle" font-size="9" fill="#d4af37">' + b.v + '</text>' +
+             '<text x="' + (x + 15) + '" y="120" text-anchor="middle" font-size="9" fill="#8f8b82">' + b.m + '</text>';
+    }).join("");
+
+    var counts = { 2: 6, 5: 3, 8: 9, 12: 5, 15: 7, 20: 4, 22: 8, 27: 6, 29: 3 };
+    var cal = "";
+    for (var d = 1; d <= 31; d++) {
+      cal += '<div class="plus-cal__day">' + d + (counts[d] ? '<span class="plus-cal__count">' + counts[d] + '</span>' : '') + '</div>';
+    }
+
+    els.content.innerHTML =
+      '<div class="plus-teaser">' +
+        '<div class="plus-teaser__content" aria-hidden="true">' +
+          '<div class="plus-stats">' +
+            '<div class="plus-stat"><span class="plus-stat__label">Cortes no mês</span><span class="plus-stat__value">128</span></div>' +
+            '<div class="plus-stat"><span class="plus-stat__label">Faturamento</span><span class="plus-stat__value">R$ 6.480,00</span></div>' +
+            '<div class="plus-stat"><span class="plus-stat__label">Ticket médio</span><span class="plus-stat__value">R$ 50,62</span></div>' +
+          '</div>' +
+          '<div class="plus-card"><p class="plus-card__title">Cortes por mês</p>' +
+            '<svg viewBox="0 0 300 126" class="plus-chart" role="img" aria-label="Gráfico de cortes por mês (exemplo)">' +
+              '<defs><linearGradient id="plusGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6c260"></stop><stop offset="1" stop-color="#a67c1e"></stop></linearGradient></defs>' +
+              barsSvg +
+            '</svg>' +
+          '</div>' +
+          '<div class="plus-card"><p class="plus-card__title">Agosto · agendamentos por dia</p>' +
+            '<div class="plus-cal">' + cal + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="plus-teaser__lock">' +
+          '<div class="plus-lock__badge" aria-hidden="true">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" width="26" height="26"><rect x="4" y="10" width="16" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>' +
+          '</div>' +
+          '<p class="plus-lock__title">Gerenciamento Geral · Plus (fechado)</p>' +
+          '<p class="plus-lock__sub">Acompanhamento mensal de cortes, faturamento e calendário de agendamentos — tudo liberado no plano <strong>Plus</strong>. Assine para desbloquear.</p>' +
+          '<button type="button" class="btn btn--primary plus-lock__cta" id="plus-cta">Liberar com o Plus</button>' +
+        '</div>' +
+      '</div>';
+
+    var cta = document.getElementById("plus-cta");
+    if (cta) cta.addEventListener("click", function () {
+      UI.showToast("Gerenciamento Geral faz parte do plano Plus — fale com a Avanzia para liberar.");
+    });
+  }
+
+  /* ========================================================
      Helpers de formulário/modal
      ======================================================== */
   function field(id, label, type, value) {
@@ -3631,20 +3963,27 @@ body {
   function showLock() {
     if (els.panel) els.panel.innerHTML = ""; // remove dados do DOM ao travar
     els.lock.style.display = "";
+    if (els.email) els.email.value = "";
     if (els.pass) els.pass.value = "";
     if (els.passError) els.passError.textContent = "";
   }
 
   function tryUnlock(e) {
     if (e) e.preventDefault();
-    var val0 = els.pass.value;
-    if (val0 === B.data.getAdminPass()) {
-      setUnlocked(true);
-      showPanel();
+    if (authMode()) {
+      var email = els.email ? els.email.value : "";
+      els.passError.textContent = "Entrando…";
+      B.cloud.auth.signIn(email, els.pass.value, function (err) {
+        if (err) { els.passError.textContent = "E-mail ou senha incorretos."; els.pass.value = ""; if (els.pass) els.pass.focus(); }
+        else { els.passError.textContent = ""; } // sucesso → barber:auth-changed → showPanel
+      });
+      return;
+    }
+    // Fallback local (nuvem off / front-only): senha client-side.
+    if (els.pass.value === B.data.getAdminPass()) {
+      setUnlocked(true); showPanel();
     } else {
-      els.passError.textContent = "Senha incorreta.";
-      els.pass.value = "";
-      els.pass.focus();
+      els.passError.textContent = "Senha incorreta."; els.pass.value = ""; els.pass.focus();
     }
   }
 
@@ -3659,6 +3998,7 @@ body {
     els.lock = document.getElementById("admin-lock");
     if (!els.lock) return;
     els.form = document.getElementById("admin-lock-form");
+    els.email = document.getElementById("admin-email");
     els.pass = document.getElementById("admin-pass");
     els.passError = document.getElementById("admin-pass-error");
     els.panel = document.getElementById("admin-panel");
@@ -3666,6 +4006,18 @@ body {
     if (els.form) els.form.addEventListener("submit", tryUnlock);
 
     document.addEventListener("barber:store-changed", function () {
+      if (isUnlocked() && currentTab === "agenda-list" && els.content) renderAgendamentos();
+    });
+
+    // Login real: estado de auth mudou (entrou/saiu) enquanto na Área do Dono.
+    document.addEventListener("barber:auth-changed", function () {
+      if (!els.lock) return;
+      var donoAtivo = !!document.querySelector('.view[data-view="dono"].is-active');
+      if (isUnlocked()) { if (donoAtivo) showPanel(); }
+      else if (donoAtivo) showLock();
+    });
+    // Dados privados (nuvem, dono logado) chegaram/atualizaram → re-renderiza a lista.
+    document.addEventListener("barber:priv-changed", function () {
       if (isUnlocked() && currentTab === "agenda-list" && els.content) renderAgendamentos();
     });
 
@@ -3723,6 +4075,32 @@ body {
 }
 @media (prefers-reduced-motion: reduce) { .novidade-balloon { animation: none; } }
 [data-produto-id].is-highlight { outline: 2px solid var(--color-gold); outline-offset: 3px; border-radius: var(--radius, 12px); }
+
+/* ===== Gerenciamento Geral — teaser TRANCADO (upsell Plus) ===== */
+.plus-teaser { position: relative; border-radius: var(--radius, 14px); overflow: hidden; min-height: 360px; }
+.plus-teaser__content { filter: blur(5px); opacity: .55; pointer-events: none; user-select: none; padding: 2px; }
+.plus-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3, 12px); margin-bottom: var(--space-4, 16px); }
+.plus-stat { background: var(--color-surface, #161616); border: 1px solid var(--color-border-soft, #2a2a2a); border-radius: 12px; padding: var(--space-4, 16px); display: flex; flex-direction: column; gap: .3rem; }
+.plus-stat__label { font-size: var(--fs-xs, .72rem); color: var(--color-text-muted, #8f8b82); text-transform: uppercase; letter-spacing: .06em; }
+.plus-stat__value { font-size: 1.35rem; font-weight: 700; color: var(--color-gold, #d4af37); }
+.plus-card { background: var(--color-surface, #161616); border: 1px solid var(--color-border-soft, #2a2a2a); border-radius: 12px; padding: var(--space-4, 16px); margin-bottom: var(--space-4, 16px); }
+.plus-card__title { font-size: var(--fs-sm, .88rem); color: var(--color-text-secondary, #c7c2b6); margin-bottom: var(--space-3, 12px); }
+.plus-chart { width: 100%; height: auto; }
+.plus-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.plus-cal__day { position: relative; aspect-ratio: 1 / 1; border: 1px solid var(--color-border-soft, #2a2a2a); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .8rem; color: var(--color-text-secondary, #c7c2b6); }
+.plus-cal__count { position: absolute; top: -6px; right: -6px; background: linear-gradient(180deg, #e6c260, #d4af37); color: #0c0c0d; font-size: .62rem; font-weight: 800; border-radius: 999px; padding: .08rem .32rem; }
+.plus-teaser__lock { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: .6rem; padding: var(--space-6, 24px); background: radial-gradient(120% 120% at 50% 40%, rgba(12,12,13,.70), rgba(12,12,13,.92)); }
+.plus-lock__badge { width: 56px; height: 56px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #0c0c0d; background: linear-gradient(180deg, #e6c260, #d4af37); box-shadow: 0 8px 26px rgba(212,175,55,.35); animation: plus-shimmer 2.4s ease-in-out infinite; }
+.plus-lock__title { font-size: 1.15rem; font-weight: 700; color: var(--color-gold, #d4af37); letter-spacing: .02em; }
+.plus-lock__sub { font-size: var(--fs-sm, .88rem); color: var(--color-text-secondary, #c7c2b6); max-width: 44ch; }
+.plus-lock__cta { margin-top: .4rem; transition: transform .15s ease, filter .15s ease; }
+.plus-lock__cta:hover { filter: brightness(1.09); transform: translateY(-1px); }
+@keyframes plus-shimmer { 0%, 100% { box-shadow: 0 8px 22px rgba(212,175,55,.28); } 50% { box-shadow: 0 8px 34px rgba(212,175,55,.58); } }
+@media (prefers-reduced-motion: reduce) { .plus-lock__badge { animation: none; } }
+
+/* ===== Faixa de MODO DEMONSTRAÇÃO (topo, fluxo normal — não sobrepõe o header) ===== */
+.demo-band { background: #0c0c0d; color: var(--color-gold, #d4af37); border-bottom: 1px solid var(--color-gold, #d4af37); text-align: center; font-size: .82rem; line-height: 1.35; padding: .55rem 1rem; }
+.demo-band strong { display: inline-block; color: #0c0c0d; background: linear-gradient(180deg, #e6c260, #d4af37); text-transform: uppercase; letter-spacing: .08em; font-size: .66rem; font-weight: 800; padding: .12rem .45rem; border-radius: 999px; margin-right: .5rem; vertical-align: middle; }
 </style>
 <!-- ===== novidade.js — Novidade do Dia (balão + roteamento) ===== -->
 <script>
@@ -3832,6 +4210,29 @@ body {
   function init() { render(); document.addEventListener("barber:config-changed", render); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
+})();
+</script>
+<!-- ===== demo.js — faixa de MODO DEMONSTRAÇÃO ===== -->
+<script>
+/* Injeta a faixa "Sistema em demonstração..." no topo da página quando
+   B.config.demoMode = true. Conteúdo estático (sem dado do usuário). Em fluxo
+   normal (não fixed/sticky) para não sobrepor o header sticky nem quebrar layout. */
+(function () {
+  "use strict";
+  var B = window.BARBER;
+  if (!B || !B.config || !B.config.demoMode) return;
+  function mount() {
+    if (document.getElementById("demo-band")) return;
+    var bar = document.createElement("div");
+    bar.id = "demo-band";
+    bar.className = "demo-band";
+    bar.setAttribute("role", "status");
+    bar.innerHTML = '<strong>Demonstração</strong> Sistema em demonstração — agendamentos e avisos ativados após a contratação.';
+    if (document.body.firstChild) document.body.insertBefore(bar, document.body.firstChild);
+    else document.body.appendChild(bar);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
 })();
 </script>
 <!-- ===== main.js ===== -->
