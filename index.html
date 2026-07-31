@@ -1086,6 +1086,8 @@ body {
          VIEW: AGENDAMENTO (primeira que abre) — 1 botão + pop-ups
          ============================================================ -->
     <section class="view is-active" data-view="agendar" aria-label="Agendamento">
+      <!-- Novidade do Dia: balão flutuante chamativo (preenchido por novidade.js). -->
+      <div class="container novidade-wrap"><div id="novidade-slot" aria-live="polite"></div></div>
       <div class="hero">
         <div class="container">
           <p class="eyebrow hero__eyebrow">Barbearia EG · Sarapuí-SP e Cercado</p>
@@ -1452,8 +1454,13 @@ body {
   // Normaliza WhatsApp para o formato do wa.me: se o dono digitar só DDD+número
   // (10-11 dígitos) sem o código do país, prefixa 55 automaticamente.
   function normWhats(v) { var d = sanNum(v); if (!d) return ""; if (d.slice(0, 2) === "55") return d; if (d.length === 10 || d.length === 11) return "55" + d; return d; }
+  // Sanitizadores da Novidade do Dia (dado do dono, gravável por quem tem _k).
+  function sanTipo(v)  { v = String(v || ""); return (v === "produto" || v === "curso") ? v : ""; }
+  function sanRefId(v) { return String(v == null ? "" : v).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60); }
+  function sanDT(v)    { v = String(v == null ? "" : v).trim(); return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? v : ""; }
 
   var DEFAULT_CONTATOS = { whatsapp: CONFIG.whatsapp, instagram: "erickgarcia162" };
+  var DEFAULT_NOVIDADE = { tipo: "", refId: "", descricao: "", inicio: "", fim: "", ativo: false };
   var DEFAULT_RODAPE = {
     tagline:  "Barbearia em Sarapuí-SP e Cercado. Corte, barba, loja e curso de barbeiro num só lugar.",
     horario1: "Ter a Sáb — 09h às 19h",
@@ -1486,6 +1493,11 @@ body {
     saveFotoDono:     function (v) { try { window.localStorage.setItem(k("cfg_foto_dono"), String(v)); notify(); return true; } catch (e) { return false; } },
     clearFotoDono:    function () { try { window.localStorage.removeItem(k("cfg_foto_dono")); notify(); return true; } catch (e) { return false; } },
 
+    // Novidade do Dia: destaque flutuante (produto→loja ou curso→curso), com período.
+    getNovidade:      function () { var n = readJSON(k("cfg_novidade"), DEFAULT_NOVIDADE) || {}; return { tipo: sanTipo(n.tipo), refId: sanRefId(n.refId), descricao: String(n.descricao || "").slice(0, 300), inicio: sanDT(n.inicio), fim: sanDT(n.fim), ativo: n.ativo !== false }; },
+    saveNovidade:     function (o) { o = o || {}; var ok = writeJSON(k("cfg_novidade"), { tipo: sanTipo(o.tipo), refId: sanRefId(o.refId), descricao: String(o.descricao || "").slice(0, 300), inicio: sanDT(o.inicio), fim: sanDT(o.fim), ativo: o.ativo !== false }); notify(); return ok; },
+    clearNovidade:    function () { try { window.localStorage.removeItem(k("cfg_novidade")); notify(); return true; } catch (e) { return false; } },
+
     getPagamentos:    function () { return PAGAMENTOS.slice(); },
     getCurso:         function () { return CURSO; },
 
@@ -1511,7 +1523,7 @@ body {
     saveCategorias: function (l) { var ok = writeJSON(k("cfg_categorias"), l); notify(); return ok; },
 
     resetAll: function () {
-      ["cfg_unidades", "cfg_cabeleireiros", "cfg_servicos", "cfg_produtos", "cfg_categorias", "cfg_contatos", "cfg_rodape", "cfg_foto_dono"].forEach(function (n) {
+      ["cfg_unidades", "cfg_cabeleireiros", "cfg_servicos", "cfg_produtos", "cfg_categorias", "cfg_contatos", "cfg_rodape", "cfg_foto_dono", "cfg_novidade"].forEach(function (n) {
         try { window.localStorage.removeItem(k(n)); } catch (e) {}
       });
       notify();
@@ -1687,6 +1699,8 @@ body {
     };
     var foto = lsGet("cfg_foto_dono"); // só publica override, e só se couber no cap
     if (foto && foto.length <= PHOTO_MAX_BYTES && /^data:image\//.test(foto)) st.fotoDono = foto;
+    var nov = B.data.getNovidade(); // só publica se houver destino definido
+    if (nov && nov.tipo) st.novidade = nov;
     return st;
   }
 
@@ -1709,6 +1723,12 @@ body {
         // Sem override válido no estado publicado (ex.: dono clicou "Restaurar foto
         // padrão") → limpa o cache local para TODOS convergirem ao default embutido.
         try { window.localStorage.removeItem(PREFIX + "cfg_foto_dono"); } catch (e) {}
+      }
+      if (st.novidade && typeof st.novidade === "object" && (st.novidade.tipo === "produto" || st.novidade.tipo === "curso")) {
+        B.data.saveNovidade(st.novidade); // re-sanitiza (enum/data/cap) no ingest
+      } else {
+        // Novidade removida em outro aparelho → limpa local para o balão sumir em todos.
+        try { window.localStorage.removeItem(PREFIX + "cfg_novidade"); } catch (e) {}
       }
       document.dispatchEvent(new CustomEvent("barber:config-changed")); // enquanto applying=true (não ecoa push)
     } catch (e) {}
@@ -2592,6 +2612,19 @@ body {
   function init() {
     var btn = document.getElementById("btn-agendar");
     if (btn) btn.addEventListener("click", start);
+
+    // AO VIVO: se o dono editar (localmente ou vindo da nuvem de OUTRO aparelho)
+    // com o wizard ABERTO, recarrega a config viva e re-renderiza a etapa atual.
+    // O state do cliente é preservado (ids que sumiram são filtrados). Não
+    // re-renderiza enquanto o cliente digita num campo do wizard (evita perder o
+    // foco) — a config é relida de qualquer forma ao avançar de etapa.
+    document.addEventListener("barber:config-changed", function () {
+      if (!modal) return;
+      var ae = document.activeElement;
+      if (ae && modal.body && modal.body.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+      loadData();
+      render();
+    });
   }
 
   document.addEventListener("DOMContentLoaded", init);
@@ -2644,7 +2677,7 @@ body {
       : '<a class="btn btn--whats btn--block" href="' + B.esc(waLink(msgDisponivel(p))) + '" target="_blank" rel="noopener">Quero pelo WhatsApp</a>';
 
     return (
-      '<article class="card product-card reveal' + (esgotado ? ' is-esgotado' : '') + '">' +
+      '<article class="card product-card reveal' + (esgotado ? ' is-esgotado' : '') + '" data-produto-id="' + B.esc(p.id) + '">' +
         media +
         '<div class="product-card__body">' +
           '<span class="product-card__cat">' + B.esc(p.cat || "Outros") + (p.cor ? ' · ' + B.esc(p.cor) : '') + '</span>' +
@@ -2893,6 +2926,7 @@ body {
     { id: "servicos", nome: "Serviços" },
     { id: "loja", nome: "Loja" },
     { id: "unidades", nome: "Agenda & Unidades" },
+    { id: "novidade", nome: "Novidade do Dia" },
     { id: "contato", nome: "Contato & Rodapé" },
     { id: "senha", nome: "Senha" }
   ];
@@ -2931,6 +2965,7 @@ body {
     if (currentTab === "servicos") return renderServicos();
     if (currentTab === "loja") return renderLoja();
     if (currentTab === "unidades") return renderUnidades();
+    if (currentTab === "novidade") return renderNovidade();
     if (currentTab === "contato") return renderContato();
     if (currentTab === "senha") return renderSenha();
   }
@@ -3168,6 +3203,62 @@ body {
     };
     reader.onerror = function () { cb(null, 0); };
     reader.readAsDataURL(file);
+  }
+
+  /* ========================================================
+     TAB — NOVIDADE DO DIA (destaque flutuante no Agendamento)
+     ======================================================== */
+  function renderNovidade() {
+    var n = B.data.getNovidade();
+    var produtos = B.data.getProdutos();
+    els.content.innerHTML =
+      '<div class="admin-crud__head"><p class="muted">Balão de destaque no topo do Agendamento. Ao clicar, o cliente vai para o produto (na Loja) ou para o Curso. Fora do período, some sozinho — em todos os aparelhos.</p></div>' +
+      '<div class="field"><label class="field__label" for="nv-tipo">Destino</label>' +
+        '<select class="control" id="nv-tipo">' +
+          '<option value="">— escolher —</option>' +
+          '<option value="produto"' + (n.tipo === "produto" ? " selected" : "") + '>Produto da Loja</option>' +
+          '<option value="curso"' + (n.tipo === "curso" ? " selected" : "") + '>Curso</option>' +
+        '</select></div>' +
+      '<div class="field" id="nv-prod-wrap"><label class="field__label" for="nv-ref">Produto em destaque</label>' +
+        '<select class="control" id="nv-ref"><option value="">— escolher produto —</option>' +
+          produtos.map(function (p) { return '<option value="' + B.esc(p.id) + '"' + (n.refId === p.id ? " selected" : "") + '>' + B.esc(p.nome) + '</option>'; }).join("") +
+        '</select></div>' +
+      '<div class="field"><label class="field__label" for="nv-desc">Descrição (texto do balão)</label>' +
+        '<textarea class="control" id="nv-desc" rows="2" maxlength="300" placeholder="Ex.: Camiseta EG em promoção esta semana!">' + B.esc(n.descricao) + '</textarea></div>' +
+      '<div class="field"><label class="field__label" for="nv-inicio">Início (opcional)</label><input class="control" type="datetime-local" id="nv-inicio" value="' + B.esc(n.inicio) + '"></div>' +
+      '<div class="field"><label class="field__label" for="nv-fim">Fim (opcional)</label><input class="control" type="datetime-local" id="nv-fim" value="' + B.esc(n.fim) + '"></div>' +
+      '<label class="check"><input type="checkbox" id="nv-ativo"' + (n.ativo !== false ? " checked" : "") + '> Ativo (interruptor manual — vale junto com o período)</label>' +
+      '<div style="margin-top:var(--space-4);display:flex;gap:var(--space-2);flex-wrap:wrap;">' +
+        '<button type="button" class="btn btn--primary" id="nv-save">Salvar e publicar</button>' +
+        '<button type="button" class="btn btn--ghost btn--small" id="nv-clear">Remover novidade</button>' +
+      '</div>';
+
+    function toggleProd() {
+      var t = document.getElementById("nv-tipo").value;
+      document.getElementById("nv-prod-wrap").style.display = (t === "produto") ? "" : "none";
+    }
+    toggleProd();
+    document.getElementById("nv-tipo").addEventListener("change", toggleProd);
+
+    document.getElementById("nv-save").addEventListener("click", function () {
+      var tipo = document.getElementById("nv-tipo").value;
+      if (tipo !== "produto" && tipo !== "curso") return UI.showToast("Escolha o destino (produto ou curso).");
+      var refId = (tipo === "produto") ? document.getElementById("nv-ref").value : "";
+      if (tipo === "produto" && !refId) return UI.showToast("Escolha o produto em destaque.");
+      var desc = String(document.getElementById("nv-desc").value || "").trim();
+      if (desc.length < 2) return UI.showToast("Escreva a descrição do balão.");
+      var ini = document.getElementById("nv-inicio").value, fim = document.getElementById("nv-fim").value;
+      if (ini && fim && new Date(fim).getTime() < new Date(ini).getTime()) return UI.showToast("O fim não pode ser antes do início.");
+      B.data.saveNovidade({ tipo: tipo, refId: refId, descricao: desc, inicio: ini, fim: fim, ativo: document.getElementById("nv-ativo").checked });
+      UI.showToast("Novidade salva e publicada.");
+      renderNovidade();
+    });
+
+    document.getElementById("nv-clear").addEventListener("click", function () {
+      B.data.clearNovidade();
+      UI.showToast("Novidade removida.");
+      renderNovidade();
+    });
   }
 
   /* ========================================================
@@ -3572,6 +3663,16 @@ body {
       if (isUnlocked() && currentTab === "agenda-list" && els.content) renderAgendamentos();
     });
 
+    // AO VIVO no painel: alteração vinda da nuvem (outro aparelho do dono)
+    // re-renderiza a aba de dados atual. Não mexe na aba de Agendamentos (essa
+    // é local, dirigida por store-changed) e não clobbera digitação em curso.
+    document.addEventListener("barber:config-changed", function () {
+      if (!isUnlocked() || !els.content || currentTab === "agenda-list") return;
+      var ae = document.activeElement;
+      if (ae && els.content.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+      renderTab();
+    });
+
     window.BarberNav.onViewChange(function (view) {
       if (view !== "dono") return;
       if (isUnlocked()) showPanel();
@@ -3586,6 +3687,100 @@ body {
   document.addEventListener("DOMContentLoaded", init);
 })();
 
+</script>
+<!-- ===== Novidade do Dia: estilo do balão flutuante ===== -->
+<style>
+.novidade-wrap { padding-top: var(--space-4); padding-bottom: 0; }
+#novidade-slot:empty { display: none; }
+.novidade-balloon {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; text-align: left; cursor: pointer;
+  border: 1px solid var(--color-gold);
+  background: linear-gradient(100deg, rgba(212,175,55,0.16), rgba(212,175,55,0.05));
+  color: var(--color-text, #f5f2ea);
+  border-radius: 999px; padding: .7rem 1rem;
+  box-shadow: 0 6px 22px rgba(212,175,55,0.22);
+  animation: novidade-pulse 2.2s ease-in-out infinite;
+}
+.novidade-balloon:hover { filter: brightness(1.08); }
+.novidade-balloon__pin {
+  flex: none; font-size: .62rem; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--color-black, #0c0c0d);
+  background: linear-gradient(180deg, var(--color-gold-bright, #e6c260), var(--color-gold, #d4af37));
+  padding: .32rem .55rem; border-radius: 999px;
+}
+.novidade-balloon__txt { flex: 1 1 auto; font-size: .92rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.novidade-balloon__cta { flex: none; color: var(--color-gold); font-weight: 700; font-size: .9rem; }
+@keyframes novidade-pulse {
+  0%, 100% { box-shadow: 0 6px 22px rgba(212,175,55,0.18); }
+  50%      { box-shadow: 0 6px 30px rgba(212,175,55,0.42); }
+}
+@media (prefers-reduced-motion: reduce) { .novidade-balloon { animation: none; } }
+[data-produto-id].is-highlight { outline: 2px solid var(--color-gold); outline-offset: 3px; border-radius: var(--radius, 12px); }
+</style>
+<!-- ===== novidade.js — Novidade do Dia (balão + roteamento) ===== -->
+<script>
+/* =========================================================
+   NOVIDADE DO DIA — balão flutuante chamativo no topo do Agendamento.
+   Ativo = tipo válido + descrição + interruptor "ativo" + dentro do período
+   (início/fim opcionais). Clique: produto → Loja (rola/destaca o item);
+   curso → Curso. Live via config-changed (nuvem/local) + timer que faz o
+   balão sumir sozinho quando o período termina. Descrição sempre via B.esc.
+   ========================================================= */
+(function () {
+  "use strict";
+  var B = window.BARBER;
+  var slot = null;
+
+  function isActive(n) {
+    if (!n || (n.tipo !== "produto" && n.tipo !== "curso")) return false;
+    if (n.ativo === false) return false;
+    if (!String(n.descricao || "").trim()) return false;
+    var now = Date.now();
+    if (n.inicio) { var ini = new Date(n.inicio).getTime(); if (!isNaN(ini) && now < ini) return false; }
+    if (n.fim)    { var f   = new Date(n.fim).getTime();    if (!isNaN(f)   && now > f)   return false; }
+    return true;
+  }
+
+  function route(n) {
+    if (!window.BarberNav || typeof window.BarberNav.go !== "function") return;
+    if (n.tipo === "curso") { window.BarberNav.go("curso"); return; }
+    window.BarberNav.go("loja"); // produto
+    if (!n.refId) return;
+    setTimeout(function () {
+      var sel = (window.CSS && CSS.escape) ? CSS.escape(n.refId) : n.refId;
+      var el = document.querySelector('[data-produto-id="' + sel + '"]');
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("is-highlight");
+      setTimeout(function () { el.classList.remove("is-highlight"); }, 2600);
+    }, 200);
+  }
+
+  function render() {
+    if (!slot) slot = document.getElementById("novidade-slot");
+    if (!slot) return;
+    var n = B.data.getNovidade();
+    if (!isActive(n)) { slot.innerHTML = ""; return; }
+    var label = n.tipo === "curso" ? "Novidade do curso" : "Novidade na loja";
+    slot.innerHTML =
+      '<button type="button" class="novidade-balloon" aria-label="' + B.esc(label + ": " + n.descricao) + '">' +
+        '<span class="novidade-balloon__pin">Novidade</span>' +
+        '<span class="novidade-balloon__txt">' + B.esc(n.descricao) + '</span>' +
+        '<span class="novidade-balloon__cta" aria-hidden="true">ver ›</span>' +
+      '</button>';
+    var btn = slot.querySelector(".novidade-balloon");
+    if (btn) btn.addEventListener("click", function () { route(B.data.getNovidade()); });
+  }
+
+  function init() {
+    render();
+    document.addEventListener("barber:config-changed", render); // live (nuvem/local)
+    setInterval(render, 30000); // some sozinho ao fim do período, sem refresh
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
 </script>
 <!-- ===== footer.js — rodapé dinâmico (contatos + unidades + textos) ===== -->
 <script>
