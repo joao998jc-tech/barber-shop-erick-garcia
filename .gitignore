@@ -1,0 +1,5 @@
+firebase.json
+database.rules.json
+rollback_rules.json
+rules_LIVE_backup.json
+.firebase/

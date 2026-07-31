@@ -1204,11 +1204,12 @@ body {
           </span>
           <span>BARBEARIA EG<span class="logo__accent">.</span></span>
         </span>
-        <p class="footer__tagline">Barbearia em Sarapuí-SP e Cercado. Corte, barba, loja e curso de barbeiro num só lugar.</p>
+        <p class="footer__tagline" id="footer-tagline">Barbearia em Sarapuí-SP e Cercado. Corte, barba, loja e curso de barbeiro num só lugar.</p>
       </div>
       <div class="footer__col">
         <h4 class="footer__heading">Contato</h4>
-        <ul class="footer__list">
+        <!-- Preenchido dinamicamente por footer.js (contatos + unidades). Conteúdo abaixo é fallback sem-JS. -->
+        <ul class="footer__list" id="footer-contato">
           <li><a href="https://wa.me/5515996086265" target="_blank" rel="noopener" style="color:var(--color-gold);">WhatsApp (15) 99608-6265</a></li>
           <li><a href="https://instagram.com/erickgarcia162" target="_blank" rel="noopener" style="color:var(--color-gold);">Instagram @erickgarcia162</a></li>
           <li>Unidade Centro – Sarapuí-SP</li>
@@ -1217,7 +1218,7 @@ body {
       </div>
       <div class="footer__col">
         <h4 class="footer__heading">Horário</h4>
-        <ul class="footer__list">
+        <ul class="footer__list" id="footer-horario">
           <li>Ter a Sáb — 09h às 19h</li>
           <li>Dom e Seg — fechado</li>
         </ul>
@@ -1443,6 +1444,22 @@ body {
   }
   function clone(v) { return JSON.parse(JSON.stringify(v)); }
 
+  // Sanitizadores de contato (defesa contra injeção de URL/scheme em dado vindo
+  // da nuvem — o nó é gravável por quem tem o _k). WhatsApp vira só dígitos;
+  // handle do Instagram vira só [A-Za-z0-9._]. Nunca permitem "javascript:".
+  function sanNum(v)    { return String(v == null ? "" : v).replace(/\D/g, "").slice(0, 15); }
+  function sanHandle(v) { return String(v == null ? "" : v).replace(/^@+/, "").replace(/[^A-Za-z0-9._]/g, "").slice(0, 40); }
+  // Normaliza WhatsApp para o formato do wa.me: se o dono digitar só DDD+número
+  // (10-11 dígitos) sem o código do país, prefixa 55 automaticamente.
+  function normWhats(v) { var d = sanNum(v); if (!d) return ""; if (d.slice(0, 2) === "55") return d; if (d.length === 10 || d.length === 11) return "55" + d; return d; }
+
+  var DEFAULT_CONTATOS = { whatsapp: CONFIG.whatsapp, instagram: "erickgarcia162" };
+  var DEFAULT_RODAPE = {
+    tagline:  "Barbearia em Sarapuí-SP e Cercado. Corte, barba, loja e curso de barbeiro num só lugar.",
+    horario1: "Ter a Sáb — 09h às 19h",
+    horario2: "Dom e Seg — fechado"
+  };
+
   var DATA = {
     getUnidades:      function () { return readJSON(k("cfg_unidades"),     DEFAULT_UNIDADES); },
     saveUnidades:     function (l) { var ok = writeJSON(k("cfg_unidades"), l); notify(); return ok; },
@@ -1455,6 +1472,19 @@ body {
 
     getProdutos:      function () { return readJSON(k("cfg_produtos"),     DEFAULT_PRODUTOS); },
     saveProdutos:     function (l) { var ok = writeJSON(k("cfg_produtos"), l); notify(); return ok; },
+
+    // Contatos (rodapé): WhatsApp + Instagram — editáveis pelo dono e sincronizados.
+    getContatos:      function () { var c = readJSON(k("cfg_contatos"), DEFAULT_CONTATOS) || {}; return { whatsapp: normWhats(c.whatsapp) || CONFIG.whatsapp, instagram: sanHandle(c.instagram) || DEFAULT_CONTATOS.instagram }; },
+    saveContatos:     function (o) { o = o || {}; var ok = writeJSON(k("cfg_contatos"), { whatsapp: normWhats(o.whatsapp), instagram: sanHandle(o.instagram) }); notify(); return ok; },
+
+    // Textos do rodapé (frase + horários) — editáveis pelo dono e sincronizados.
+    getRodape:        function () { var r = readJSON(k("cfg_rodape"), DEFAULT_RODAPE) || {}; return { tagline: String(r.tagline || DEFAULT_RODAPE.tagline), horario1: String(r.horario1 || DEFAULT_RODAPE.horario1), horario2: String(r.horario2 || DEFAULT_RODAPE.horario2) }; },
+    saveRodape:       function (o) { o = o || {}; var ok = writeJSON(k("cfg_rodape"), { tagline: String(o.tagline || ""), horario1: String(o.horario1 || ""), horario2: String(o.horario2 || "") }); notify(); return ok; },
+
+    // Foto do dono (Curso): default embutido no HTML; só grava override se o dono trocar.
+    getFotoDono:      function () { try { var v = window.localStorage.getItem(k("cfg_foto_dono")); return (v && /^data:image\//.test(v)) ? v : CONFIG.fotoDono; } catch (e) { return CONFIG.fotoDono; } },
+    saveFotoDono:     function (v) { try { window.localStorage.setItem(k("cfg_foto_dono"), String(v)); notify(); return true; } catch (e) { return false; } },
+    clearFotoDono:    function () { try { window.localStorage.removeItem(k("cfg_foto_dono")); notify(); return true; } catch (e) { return false; } },
 
     getPagamentos:    function () { return PAGAMENTOS.slice(); },
     getCurso:         function () { return CURSO; },
@@ -1481,7 +1511,7 @@ body {
     saveCategorias: function (l) { var ok = writeJSON(k("cfg_categorias"), l); notify(); return ok; },
 
     resetAll: function () {
-      ["cfg_unidades", "cfg_cabeleireiros", "cfg_servicos", "cfg_produtos", "cfg_categorias"].forEach(function (n) {
+      ["cfg_unidades", "cfg_cabeleireiros", "cfg_servicos", "cfg_produtos", "cfg_categorias", "cfg_contatos", "cfg_rodape", "cfg_foto_dono"].forEach(function (n) {
         try { window.localStorage.removeItem(k(n)); } catch (e) {}
       });
       notify();
@@ -1516,9 +1546,10 @@ body {
     return null;
   }
 
-  // Link de WhatsApp (fonte única — usado por Loja e Curso).
+  // Link de WhatsApp (fonte única — usado por Loja e Curso). Lê o número dos
+  // contatos editáveis pelo dono (sincronizados na nuvem), com fallback ao CONFIG.
   function waLink(msg) {
-    var num = String(CONFIG.whatsapp || "").replace(/\D/g, "");
+    var num = String(DATA.getContatos().whatsapp || CONFIG.whatsapp || "").replace(/\D/g, "");
     return "https://wa.me/" + num + "?text=" + encodeURIComponent(msg || "");
   }
 
@@ -1593,6 +1624,121 @@ body {
   };
 })();
 
+</script>
+
+<!-- ═══ FIREBASE SDK (versão TRAVADA 10.14.1 — nunca usar tag flutuante) ══ -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<!-- ===== cloud-sync.js — publicação global das edições do dono ===== -->
+<script>
+/* =========================================================
+   CLOUD SYNC (Realtime Database) — as edições do dono são gravadas na
+   nuvem e publicadas para TODOS os aparelhos ("modificou já salva
+   publicado para todos verem e disponível em qualquer aparelho").
+
+   • PÚBLICO lê no load (on('value')) e aplica nas chaves de dados
+     existentes → notify() re-renderiza. localStorage vira cache.
+   • ADM grava no save (debounce) o estado consolidado + _k no nó.
+   • Defaults embutidos no HTML = seed (aparece mesmo com nó vazio).
+   • Agendamentos (nome/telefone) NÃO entram aqui (ficam locais).
+
+   Banco COMPARTILHADO varanda-lanches-jc998 (mesma instância dos
+   cardápios), nó TOP-LEVEL próprio "barber_eg" com _k EXCLUSIVO do
+   barber. Isolamento entre clientes é garantido pelas regras +
+   .validate em database.rules.json (um cliente não afeta o outro).
+   ========================================================= */
+(function () {
+  "use strict";
+  var B = window.BARBER;
+
+  // ═══════════════ CONFIG FIREBASE (conferir com o Atlas) ═══════════════
+  // Instância compartilhada extraída dos cardápios (Varanda/Gordices/Espetinho).
+  var FIREBASE_CONFIG = {
+    apiKey:      "AIzaSyDIORooIwE87hgWfLMvgxrbrCOKOiR4Yvk",
+    authDomain:  "varanda-lanches-jc998.firebaseapp.com",
+    databaseURL: "https://varanda-lanches-jc998-default-rtdb.firebaseio.com",
+    projectId:   "varanda-lanches-jc998"
+  };
+  var CLOUD_NODE   = "barber_eg";                                       // nó próprio, isolado
+  var CLOUD_SECRET = "c8ca64e6418f9206ff91370395d12b55483e7c08826b1d1a"; // _k exclusivo do barber (casa com database.rules.json)
+  var PHOTO_MAX_BYTES = 92160;                                          // 90KB — CAP DURO (casa com .validate)
+  // ══════════════════════════════════════════════════════════════════════
+
+  var PREFIX  = B.config.storagePrefix;
+  var enabled = FIREBASE_CONFIG.databaseURL.indexOf("COLE_AQUI") === -1;
+  var ref = null, applying = false, pushTimer = null;
+
+  function lsGet(key)      { try { return window.localStorage.getItem(PREFIX + key); } catch (e) { return null; } }
+  function lsSetJSON(key, v) { try { window.localStorage.setItem(PREFIX + key, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  function lsGetJSON(key, fb) { try { var r = lsGet(key); return r == null ? fb : JSON.parse(r); } catch (e) { return fb; } }
+
+  // Monta o estado consolidado a publicar (espelha os getters da camada data).
+  function buildState() {
+    var st = {
+      servicos:      B.data.getServicos(),
+      produtos:      B.data.getProdutos(),
+      unidades:      B.data.getUnidades(),
+      cabeleireiros: B.data.getCabeleireiros(),
+      categorias:    lsGetJSON("cfg_categorias", []),
+      contatos:      B.data.getContatos(),
+      rodape:        B.data.getRodape(),
+      _k:            CLOUD_SECRET,
+      _updatedAt:    Date.now()
+    };
+    var foto = lsGet("cfg_foto_dono"); // só publica override, e só se couber no cap
+    if (foto && foto.length <= PHOTO_MAX_BYTES && /^data:image\//.test(foto)) st.fotoDono = foto;
+    return st;
+  }
+
+  // Aplica estado remoto nas chaves locais (cache) e re-renderiza. Tudo que é
+  // string exibível passa depois por B.esc() nos renderizadores.
+  function applyRemote(st) {
+    if (!st || typeof st !== "object") return;
+    applying = true;
+    try {
+      if (Array.isArray(st.servicos))      lsSetJSON("cfg_servicos", st.servicos);
+      if (Array.isArray(st.produtos))      lsSetJSON("cfg_produtos", st.produtos);
+      if (Array.isArray(st.unidades))      lsSetJSON("cfg_unidades", st.unidades);
+      if (Array.isArray(st.cabeleireiros)) lsSetJSON("cfg_cabeleireiros", st.cabeleireiros);
+      if (Array.isArray(st.categorias))    lsSetJSON("cfg_categorias", st.categorias);
+      if (st.contatos && typeof st.contatos === "object") B.data.saveContatos(st.contatos); // re-sanitiza
+      if (st.rodape   && typeof st.rodape   === "object") B.data.saveRodape(st.rodape);
+      if (typeof st.fotoDono === "string" && st.fotoDono.length <= PHOTO_MAX_BYTES && /^data:image\//.test(st.fotoDono)) {
+        try { window.localStorage.setItem(PREFIX + "cfg_foto_dono", st.fotoDono); } catch (e) {}
+      } else {
+        // Sem override válido no estado publicado (ex.: dono clicou "Restaurar foto
+        // padrão") → limpa o cache local para TODOS convergirem ao default embutido.
+        try { window.localStorage.removeItem(PREFIX + "cfg_foto_dono"); } catch (e) {}
+      }
+      document.dispatchEvent(new CustomEvent("barber:config-changed")); // enquanto applying=true (não ecoa push)
+    } catch (e) {}
+    applying = false;
+  }
+
+  function schedulePush() {
+    if (!enabled || !ref || applying) return; // não republica mudança vinda da própria nuvem
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      try { ref.set(buildState()); } catch (e) {}
+    }, 600);
+  }
+
+  function start() {
+    if (!enabled) return; // sem config válida → site roda 100% local (front-only)
+    try {
+      if (typeof firebase === "undefined") return;
+      firebase.initializeApp(FIREBASE_CONFIG);
+      ref = firebase.database().ref(CLOUD_NODE);
+      ref.on("value", function (snap) { applyRemote(snap.val()); });
+      document.addEventListener("barber:config-changed", schedulePush);
+    } catch (e) { /* falha de nuvem nunca pode derrubar o site */ }
+  }
+
+  B.cloud = { enabled: function () { return enabled; }, photoMaxBytes: PHOTO_MAX_BYTES, node: CLOUD_NODE };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
+})();
 </script>
 <!-- ===== storage.js ===== -->
 <script>
@@ -2615,7 +2761,7 @@ body {
 
       '<div class="course-bio">' +
         '<div class="course-bio__photo reveal">' +
-          '<img src="' + B.esc(B.config.fotoDono) + '" alt="Erick Garcia, dono da Barbearia EG" loading="lazy">' +
+          '<img src="' + B.esc(B.data.getFotoDono()) + '" alt="Erick Garcia, dono da Barbearia EG" loading="lazy">' +
         '</div>' +
         '<div class="course-bio__text reveal reveal--delay-1">' +
           '<p class="eyebrow">Desde 2019</p>' +
@@ -2669,6 +2815,8 @@ body {
   }
 
   document.addEventListener("DOMContentLoaded", render);
+  // Re-renderiza quando o dono trocar a foto/dados (inclui updates vindos da nuvem).
+  document.addEventListener("barber:config-changed", render);
 })();
 
 </script>
@@ -2745,6 +2893,7 @@ body {
     { id: "servicos", nome: "Serviços" },
     { id: "loja", nome: "Loja" },
     { id: "unidades", nome: "Agenda & Unidades" },
+    { id: "contato", nome: "Contato & Rodapé" },
     { id: "senha", nome: "Senha" }
   ];
 
@@ -2782,6 +2931,7 @@ body {
     if (currentTab === "servicos") return renderServicos();
     if (currentTab === "loja") return renderLoja();
     if (currentTab === "unidades") return renderUnidades();
+    if (currentTab === "contato") return renderContato();
     if (currentTab === "senha") return renderSenha();
   }
 
@@ -2935,6 +3085,89 @@ body {
       UI.showToast("Serviço removido.");
       renderServicos();
     }, { danger: true, yesLabel: "Remover" });
+  }
+
+  /* ========================================================
+     TAB — CONTATO & RODAPÉ (WhatsApp, Instagram, textos, foto do dono)
+     Tudo aqui é publicado na nuvem (quando ativa) e visível em qualquer
+     aparelho. A foto é comprimida no cliente até caber no CAP DURO.
+     ======================================================== */
+  var _pendingFoto = null; // data URI comprimido aguardando "Salvar"
+
+  function renderContato() {
+    var c = B.data.getContatos();
+    var r = B.data.getRodape();
+    _pendingFoto = null;
+    var capKB = Math.round((B.cloud && B.cloud.photoMaxBytes ? B.cloud.photoMaxBytes : 92160) / 1024);
+    els.content.innerHTML =
+      '<div class="admin-crud__head"><p class="muted">Contatos e textos do rodapé, e a foto do dono na página do Curso. Ao salvar, publica para todos os aparelhos.</p></div>' +
+      field("ct-whats", "WhatsApp (só números, com DDD — ex.: 15996086265)", "text", c.whatsapp) +
+      field("ct-insta", "Instagram (usuário, sem @)", "text", c.instagram) +
+      field("ct-tagline", "Frase do rodapé", "text", r.tagline) +
+      field("ct-hora1", "Horário — linha 1", "text", r.horario1) +
+      field("ct-hora2", "Horário — linha 2", "text", r.horario2) +
+      '<div class="field"><label class="field__label" for="ct-foto">Foto do dono (Curso) — comprime sozinho até ~' + capKB + 'KB</label>' +
+        '<input class="control" type="file" id="ct-foto" accept="image/*"></div>' +
+      '<div id="ct-foto-status" class="muted" style="font-size:.8rem;margin-top:-.4rem;"></div>' +
+      '<div style="margin-top:var(--space-4);display:flex;gap:var(--space-2);flex-wrap:wrap;">' +
+        '<button type="button" class="btn btn--primary" id="ct-save">Salvar e publicar</button>' +
+        '<button type="button" class="btn btn--ghost btn--small" id="ct-foto-reset">Restaurar foto padrão</button>' +
+      '</div>';
+
+    var status = document.getElementById("ct-foto-status");
+    document.getElementById("ct-foto").addEventListener("change", function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) { _pendingFoto = null; status.textContent = ""; return; }
+      status.textContent = "Processando imagem…";
+      var cap = (B.cloud && B.cloud.photoMaxBytes) ? B.cloud.photoMaxBytes : 92160;
+      compressImage(file, cap, function (dataUri, size) {
+        if (!dataUri) { _pendingFoto = null; status.textContent = "Não consegui comprimir essa imagem abaixo do limite. Tente uma foto menor."; return; }
+        _pendingFoto = dataUri;
+        status.textContent = "Foto pronta (" + Math.round(size / 1024) + "KB). Clique em Salvar para publicar.";
+      });
+    });
+
+    document.getElementById("ct-foto-reset").addEventListener("click", function () {
+      B.data.clearFotoDono();
+      _pendingFoto = null;
+      UI.showToast("Foto do dono restaurada para o padrão.");
+      renderContato();
+    });
+
+    document.getElementById("ct-save").addEventListener("click", function () {
+      B.data.saveContatos({ whatsapp: val("ct-whats"), instagram: val("ct-insta") });
+      B.data.saveRodape({ tagline: val("ct-tagline"), horario1: val("ct-hora1"), horario2: val("ct-hora2") });
+      if (_pendingFoto) { B.data.saveFotoDono(_pendingFoto); _pendingFoto = null; }
+      UI.showToast("Contatos e rodapé salvos e publicados.");
+      renderContato();
+    });
+  }
+
+  // Compressão client-side: redimensiona (máx. 800px), reduz qualidade JPEG
+  // iterativamente e, se preciso, encolhe dimensão, até caber no cap (bytes da
+  // string data URI — a mesma métrica de payload gravada na nuvem).
+  function compressImage(file, maxBytes, cb) {
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.width, h = img.height;
+        var maxDim = 800;
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale)); h = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement("canvas");
+        function draw() { canvas.width = w; canvas.height = h; canvas.getContext("2d").drawImage(img, 0, 0, w, h); }
+        draw();
+        var q = 0.85, out = canvas.toDataURL("image/jpeg", q);
+        while (out.length > maxBytes && q > 0.3) { q -= 0.1; out = canvas.toDataURL("image/jpeg", q); }
+        while (out.length > maxBytes && Math.max(w, h) > 240) { w = Math.round(w * 0.85); h = Math.round(h * 0.85); draw(); out = canvas.toDataURL("image/jpeg", 0.6); }
+        cb(out.length <= maxBytes ? out : null, out.length);
+      };
+      img.onerror = function () { cb(null, 0); };
+      img.src = ev.target.result;
+    };
+    reader.onerror = function () { cb(null, 0); };
+    reader.readAsDataURL(file);
   }
 
   /* ========================================================
@@ -3353,6 +3586,52 @@ body {
   document.addEventListener("DOMContentLoaded", init);
 })();
 
+</script>
+<!-- ===== footer.js — rodapé dinâmico (contatos + unidades + textos) ===== -->
+<script>
+/* =========================================================
+   FOOTER — renderiza contato (WhatsApp/Instagram), lista de unidades e
+   textos do rodapé a partir da camada de dados (editável pelo dono e
+   sincronizada na nuvem). Links são construídos com número só-dígitos e
+   handle sanitizado (sem "javascript:") + B.esc — anti-injeção.
+   ========================================================= */
+(function () {
+  "use strict";
+  var B = window.BARBER;
+
+  function instaUrl(h) {
+    h = String(h || "").replace(/^@+/, "").replace(/[^A-Za-z0-9._]/g, "");
+    return "https://instagram.com/" + h;
+  }
+  function fmtWhats(num) {
+    var m = String(num || "").match(/^55(\d{2})(\d{5})(\d{4})$/);
+    return m ? "(" + m[1] + ") " + m[2] + "-" + m[3] : String(num || "");
+  }
+
+  function render() {
+    var c = B.data.getContatos(), r = B.data.getRodape(), us = B.data.getUnidades();
+
+    var tag = document.getElementById("footer-tagline");
+    if (tag) tag.textContent = r.tagline;
+
+    var ct = document.getElementById("footer-contato");
+    if (ct) {
+      var num = String(c.whatsapp || "").replace(/\D/g, "");
+      var html =
+        '<li><a href="https://wa.me/' + B.esc(num) + '" target="_blank" rel="noopener" style="color:var(--color-gold);">WhatsApp ' + B.esc(fmtWhats(num)) + '</a></li>' +
+        '<li><a href="' + B.esc(instaUrl(c.instagram)) + '" target="_blank" rel="noopener" style="color:var(--color-gold);">Instagram @' + B.esc(c.instagram) + '</a></li>';
+      us.forEach(function (u) { html += '<li>Unidade ' + B.esc(u.nome) + '</li>'; });
+      ct.innerHTML = html;
+    }
+
+    var hr = document.getElementById("footer-horario");
+    if (hr) hr.innerHTML = '<li>' + B.esc(r.horario1) + '</li><li>' + B.esc(r.horario2) + '</li>';
+  }
+
+  function init() { render(); document.addEventListener("barber:config-changed", render); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
 </script>
 <!-- ===== main.js ===== -->
 <script>
