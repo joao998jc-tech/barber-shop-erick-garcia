@@ -589,12 +589,42 @@ body {
   border-bottom: 1px solid var(--color-border-soft);
 }
 .product-card__media svg { width: 46px; height: 46px; opacity: 0.55; }
+.product-card__photo {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.product-card__media--clickable { cursor: pointer; }
+.product-card__media--clickable:focus-visible { outline: 2px solid var(--color-gold); outline-offset: -2px; }
 .photo-tag {
   position: absolute; bottom: 8px; left: 8px;
   font-size: 0.62rem; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--color-text-secondary); background: var(--color-photo-tag-bg);
   padding: 2px 7px; border-radius: var(--radius-full);
 }
+
+/* ---------- LIGHTBOX (galeria pública de fotos do produto) ---------- */
+.lightbox { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.lightbox__img { max-width: 100%; max-height: 60vh; border-radius: var(--radius-md); object-fit: contain; }
+.lightbox__nav { display: flex; align-items: center; gap: var(--space-3); }
+.lightbox__count { font-size: var(--fs-sm); color: var(--color-text-secondary); }
+
+/* ---------- ADM: miniaturas de fotos do produto (adicionar/remover/reordenar) ---------- */
+.img-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+.img-thumb { position: relative; width: 84px; height: 84px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--color-border-soft); }
+.img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.img-thumb__badge {
+  position: absolute; top: 2px; left: 2px; font-size: 0.6rem; text-transform: uppercase;
+  background: var(--color-gold); color: var(--color-bg); padding: 1px 5px; border-radius: var(--radius-full);
+}
+.img-thumb__actions {
+  position: absolute; inset: auto 0 0 0; display: flex; justify-content: center; gap: 2px;
+  background: rgba(0,0,0,.55); padding: 2px;
+}
+.img-thumb__btn {
+  border: 0; background: transparent; color: #fff; font-size: .75rem; line-height: 1;
+  padding: 2px 5px; cursor: pointer; border-radius: var(--radius-sm);
+}
+.img-thumb__btn:hover { background: rgba(255,255,255,.15); }
+.img-thumb__btn--danger:hover { background: var(--color-danger); }
 .product-card__body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); flex: 1; }
 .product-card__cat { font-size: var(--fs-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--color-text-muted); }
 .product-card__name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
@@ -1477,6 +1507,21 @@ body {
   function sanTipo(v)  { v = String(v || ""); return (v === "produto" || v === "curso") ? v : ""; }
   function sanRefId(v) { return String(v == null ? "" : v).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60); }
   function sanDT(v)    { v = String(v == null ? "" : v).trim(); return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? v : ""; }
+  // Defesa em profundidade (mesmo padrão do fotoDono): mesmo vindo da nuvem (gravável por
+  // quem tem o _k) ou de dado local corrompido, SÓ aceita data URI de imagem dentro do cap
+  // duro, e CORTA no máximo de fotos por produto (casa com .validate de produtos/$p/imagens).
+  var PROD_IMG_MAX_BYTES_FALLBACK = 51200, PROD_IMG_MAX_COUNT_FALLBACK = 4; // espelham as constantes do cloud-sync (carregado depois)
+  function sanImagens(v) {
+    if (!Array.isArray(v)) return [];
+    var cap = (window.BARBER.cloud && window.BARBER.cloud.prodImgMaxBytes) || PROD_IMG_MAX_BYTES_FALLBACK;
+    var max = (window.BARBER.cloud && window.BARBER.cloud.prodImgMaxCount) || PROD_IMG_MAX_COUNT_FALLBACK;
+    var out = [];
+    for (var i = 0; i < v.length && out.length < max; i++) {
+      var s = v[i];
+      if (typeof s === "string" && s.length <= cap && /^data:image\//.test(s)) out.push(s);
+    }
+    return out;
+  }
 
   var DEFAULT_CONTATOS = { whatsapp: CONFIG.whatsapp, instagram: "erickgarcia162" };
   var DEFAULT_NOVIDADE = { tipo: "", refId: "", descricao: "", inicio: "", fim: "", ativo: false };
@@ -1496,7 +1541,11 @@ body {
     getServicos:      function () { return readJSON(k("cfg_servicos"),     DEFAULT_SERVICOS); },
     saveServicos:     function (l) { var ok = writeJSON(k("cfg_servicos"), l); notify(); return ok; },
 
-    getProdutos:      function () { return readJSON(k("cfg_produtos"),     DEFAULT_PRODUTOS); },
+    getProdutos:      function () {
+      var l = readJSON(k("cfg_produtos"), DEFAULT_PRODUTOS);
+      if (Array.isArray(l)) l.forEach(function (p) { if (p && p.imagens != null) p.imagens = sanImagens(p.imagens); });
+      return l;
+    },
     saveProdutos:     function (l) { var ok = writeJSON(k("cfg_produtos"), l); notify(); return ok; },
 
     // Contatos (rodapé): WhatsApp + Instagram — editáveis pelo dono e sincronizados.
@@ -1708,6 +1757,8 @@ body {
   var PRIV_NODE    = "barber_eg_priv";                                  // nó PRIVADO (dados completos, read só do dono)
   var CLOUD_SECRET = "c8ca64e6418f9206ff91370395d12b55483e7c08826b1d1a"; // _k exclusivo do barber (casa com database.rules.json)
   var PHOTO_MAX_BYTES = 92160;                                          // 90KB — CAP DURO (casa com .validate)
+  var PROD_IMG_MAX_BYTES = 51200;                                       // 50KB por foto de produto — CAP DURO (casa com .validate)
+  var PROD_IMG_MAX_COUNT = 4;                                           // máx. de fotos por produto (capa + até 3) — casa com .validate ($i 0-3)
 
   // ↓↓↓ ATLAS PREENCHE (ver LISTA DE MATERIAIS) ↓↓↓
   var OWNER_UID  = "COLE_AQUI_OWNER_UID"; // uid do Erick no Firebase Auth (fixa a regra .read do nó privado)
@@ -1947,6 +1998,8 @@ body {
   B.cloud = {
     enabled: function () { return enabled; },
     photoMaxBytes: PHOTO_MAX_BYTES,
+    prodImgMaxBytes: PROD_IMG_MAX_BYTES,
+    prodImgMaxCount: PROD_IMG_MAX_COUNT,
     node: CLOUD_NODE,
     reservar: reservar,
     auth: authApi,
@@ -2904,8 +2957,21 @@ body {
 
   function buildCard(p) {
     var esgotado = !!p.esgotado;
+    var imgs = Array.isArray(p.imagens) ? p.imagens : [];
+    var capa = imgs[0];
+    // O ícone padrão (cabide) fica SEMPRE no DOM, por baixo; com foto cadastrada,
+    // a capa (1ª da galeria) cobre o ícone por cima. Se o data URI falhar
+    // (dado corrompido), onerror só remove a <img> e o ícone reaparece sozinho —
+    // sem precisar reconstruir HTML dentro do atributo (evita quebra de aspas).
+    var countBadge = imgs.length > 1
+      ? '<span class="photo-tag">+' + (imgs.length - 1) + ' foto' + (imgs.length > 2 ? 's' : '') + '</span>'
+      : '';
     var media =
-      '<div class="product-card__media">' + HANGER_SVG +
+      '<div class="product-card__media' + (imgs.length ? ' product-card__media--clickable' : '') + '"' +
+        (imgs.length ? ' data-gallery="' + B.esc(p.id) + '" role="button" tabindex="0" aria-label="Ver fotos de ' + B.esc(p.nome) + '"' : '') + '>' +
+        HANGER_SVG +
+        (capa ? '<img class="product-card__photo" src="' + B.esc(capa) + '" alt="' + B.esc(p.nome) + '" loading="lazy" onerror="this.remove()">' : '') +
+        countBadge +
         (esgotado ? '<span class="sold-out-band">Esgotado</span>' : '') +
       '</div>';
 
@@ -2925,6 +2991,41 @@ body {
         '</div>' +
       '</article>'
     );
+  }
+
+  // Lightbox simples (galeria pública) — reusa o modal genérico já usado pelo
+  // wizard de agendamento (window.BarberUI), sem criar infraestrutura nova.
+  function openGallery(p) {
+    var imgs = Array.isArray(p.imagens) ? p.imagens : [];
+    if (!imgs.length || !window.BarberUI) return;
+    var idx = 0;
+    function body() {
+      return (
+        '<div class="lightbox">' +
+          '<img class="lightbox__img" src="' + B.esc(imgs[idx]) + '" alt="' + B.esc(p.nome) + '">' +
+          (imgs.length > 1
+            ? '<div class="lightbox__nav">' +
+                '<button type="button" class="btn btn--ghost btn--small" data-lb="prev" aria-label="Foto anterior">&lsaquo;</button>' +
+                '<span class="lightbox__count">' + (idx + 1) + ' / ' + imgs.length + '</span>' +
+                '<button type="button" class="btn btn--ghost btn--small" data-lb="next" aria-label="Próxima foto">&rsaquo;</button>' +
+              '</div>'
+            : '') +
+        '</div>'
+      );
+    }
+    var api = window.BarberUI.openModal({
+      title: p.nome,
+      bodyHTML: body(),
+      onMount: function (a) {
+        a.body.addEventListener("click", function (e) {
+          var b = e.target.closest("[data-lb]");
+          if (!b) return;
+          idx = b.getAttribute("data-lb") === "next" ? (idx + 1) % imgs.length : (idx - 1 + imgs.length) % imgs.length;
+          a.setBody(body());
+        });
+      }
+    });
+    return api;
   }
 
   function render() {
@@ -2948,6 +3049,21 @@ body {
         '</div>'
       );
     }).join("");
+
+    root.onclick = function (e) {
+      var g = e.target.closest("[data-gallery]");
+      if (!g) return;
+      var prod = B.byId(B.data.getProdutos(), g.getAttribute("data-gallery"));
+      if (prod) openGallery(prod);
+    };
+    root.onkeydown = function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      var g = e.target.closest("[data-gallery]");
+      if (!g) return;
+      e.preventDefault();
+      var prod = B.byId(B.data.getProdutos(), g.getAttribute("data-gallery"));
+      if (prod) openGallery(prod);
+    };
 
     // Re-observa os .reveal recém-criados, se o observer global existir.
     if (window.BarberReveal) window.BarberReveal();
@@ -3581,10 +3697,39 @@ body {
     };
   }
 
+  // Fotos do produto em edição: cópia de trabalho ([data URIs], índice 0 = capa),
+  // só é gravada em cfg_produtos (e publicada) no clique de "Salvar" do modal —
+  // mesmo padrão da foto do dono (pendente até salvar).
+  var _pendingImagens = [];
+
+  function renderImgThumbs() {
+    var wrap = document.getElementById("pr-imgs");
+    if (!wrap) return;
+    if (!_pendingImagens.length) {
+      wrap.innerHTML = '<p class="muted" style="font-size:.8rem;margin:0;">Nenhuma foto ainda — a Loja mostra o ícone padrão.</p>';
+      return;
+    }
+    wrap.innerHTML = _pendingImagens.map(function (src, i) {
+      return (
+        '<div class="img-thumb">' +
+          '<img src="' + B.esc(src) + '" alt="Foto ' + (i + 1) + '">' +
+          (i === 0 ? '<span class="img-thumb__badge">Capa</span>' : '') +
+          '<div class="img-thumb__actions">' +
+            (i > 0 ? '<button type="button" class="img-thumb__btn" data-imgmove="' + i + ':-1" aria-label="Mover para cima">&uarr;</button>' : '') +
+            (i < _pendingImagens.length - 1 ? '<button type="button" class="img-thumb__btn" data-imgmove="' + i + ':1" aria-label="Mover para baixo">&darr;</button>' : '') +
+            '<button type="button" class="img-thumb__btn img-thumb__btn--danger" data-imgdel="' + i + '" aria-label="Remover foto ' + (i + 1) + '">&times;</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join("");
+  }
+
   function editProduto(id) {
     var produtos = B.data.getProdutos();
     var cats = B.data.getCategorias();
     var p = id ? B.byId(produtos, id) : { nome: "", cat: cats[0] || "Outros", cor: "", preco: 0, desc: "", esgotado: false };
+    _pendingImagens = (Array.isArray(p.imagens) ? p.imagens : []).slice();
+    var maxImgs = (B.cloud && B.cloud.prodImgMaxCount) || 4;
     var catOptions = cats.map(function (c) {
       return '<option value="' + B.esc(c) + '"' + (c === p.cat ? ' selected' : '') + '>' + B.esc(c) + '</option>';
     }).join("");
@@ -3601,20 +3746,70 @@ body {
         field("pr-preco", "Preço (R$)", "number", p.preco) +
         '<div class="field"><label class="field__label" for="pr-desc">Descrição</label>' +
           '<textarea class="control" id="pr-desc" rows="2" maxlength="160">' + B.esc(p.desc || "") + '</textarea></div>' +
-        '<label class="check"><input type="checkbox" id="pr-esg"' + (p.esgotado ? ' checked' : '') + '> Marcar como esgotado</label>',
+        '<label class="check"><input type="checkbox" id="pr-esg"' + (p.esgotado ? ' checked' : '') + '> Marcar como esgotado</label>' +
+        '<div class="field"><label class="field__label">Fotos do produto (até ' + maxImgs + ' — a primeira é a capa, arraste com as setas para reordenar)</label>' +
+          '<div class="img-thumbs" id="pr-imgs"></div>' +
+          '<input class="control" type="file" id="pr-img-add" accept="image/*" multiple>' +
+          '<div id="pr-img-status" class="muted" style="font-size:.8rem;margin-top:.4rem;"></div>' +
+        '</div>',
       footerHTML: modalFooter(),
       onMount: function (api) {
         var sel = document.getElementById("pr-cat");
         var wrap = document.getElementById("pr-newcat-wrap");
         sel.addEventListener("change", function () { wrap.style.display = sel.value === "__new__" ? "" : "none"; });
+
+        renderImgThumbs();
+        document.getElementById("pr-imgs").addEventListener("click", function (e) {
+          var mv = e.target.closest("[data-imgmove]");
+          if (mv) {
+            var parts = mv.getAttribute("data-imgmove").split(":");
+            var i = parseInt(parts[0], 10), j = i + parseInt(parts[1], 10);
+            if (j < 0 || j >= _pendingImagens.length) return; // guarda de borda: topo/fim da lista
+            var tmp = _pendingImagens[i]; _pendingImagens[i] = _pendingImagens[j]; _pendingImagens[j] = tmp;
+            renderImgThumbs();
+            return;
+          }
+          var del = e.target.closest("[data-imgdel]");
+          if (del) { _pendingImagens.splice(parseInt(del.getAttribute("data-imgdel"), 10), 1); renderImgThumbs(); }
+        });
+
+        var imgStatus = document.getElementById("pr-img-status");
+        var addInput = document.getElementById("pr-img-add");
+        addInput.addEventListener("change", function (e) {
+          var files = Array.prototype.slice.call(e.target.files || []);
+          addInput.value = ""; // permite reselecionar o mesmo arquivo depois (ex.: tentar de novo)
+          if (!files.length) return; // usuário cancelou o seletor
+          var cap = (B.cloud && B.cloud.prodImgMaxBytes) || 51200;
+          var max = (B.cloud && B.cloud.prodImgMaxCount) || 4;
+          var vagas = max - _pendingImagens.length;
+          if (vagas <= 0) { imgStatus.textContent = "Máximo de " + max + " fotos por produto — remova uma para adicionar outra."; return; }
+          var toProcess = files.slice(0, vagas);
+          imgStatus.textContent = (files.length > vagas)
+            ? "Só cabem mais " + vagas + " foto(s) agora — processando essas e ignorando o resto."
+            : "Processando " + toProcess.length + " foto(s)…";
+          var done = 0, falhas = 0;
+          toProcess.forEach(function (file) {
+            compressImage(file, cap, function (dataUri) {
+              done++;
+              if (dataUri) _pendingImagens.push(dataUri); else falhas++;
+              if (done === toProcess.length) {
+                renderImgThumbs();
+                imgStatus.textContent = falhas
+                  ? falhas + " foto(s) não couberam no limite e foram ignoradas (tente uma foto menor)."
+                  : "Fotos prontas. Clique em Salvar para publicar.";
+              }
+            });
+          });
+        });
+
         wireModalSave(api, function () {
           var nome = val("pr-nome");
           if (nome.length < 2) return UI.showToast("Dê um nome ao produto.");
           var cat = sel.value === "__new__" ? val("pr-newcat") : sel.value;
           if (!cat) cat = "Outros";
           var list = B.data.getProdutos();
-          var obj = { cat: cat, cor: val("pr-cor"), preco: numVal("pr-preco"), desc: val("pr-desc"), esgotado: document.getElementById("pr-esg").checked };
-          if (id) { var t = B.byId(list, id); t.nome = nome; t.cat = obj.cat; t.cor = obj.cor; t.preco = obj.preco; t.desc = obj.desc; t.esgotado = obj.esgotado; }
+          var obj = { cat: cat, cor: val("pr-cor"), preco: numVal("pr-preco"), desc: val("pr-desc"), esgotado: document.getElementById("pr-esg").checked, imagens: _pendingImagens.slice() };
+          if (id) { var t = B.byId(list, id); t.nome = nome; t.cat = obj.cat; t.cor = obj.cor; t.preco = obj.preco; t.desc = obj.desc; t.esgotado = obj.esgotado; t.imagens = obj.imagens; }
           else { obj.id = slug(nome, list); obj.nome = nome; list.push(obj); }
           if (!B.data.saveProdutos(list)) { UI.showToast("Não foi possível salvar (armazenamento cheio?)."); return false; }
           UI.showToast("Produto salvo.");
