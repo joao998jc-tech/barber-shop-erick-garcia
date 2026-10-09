@@ -1358,11 +1358,12 @@ body {
 
   // ---- UNIDADES (barbearias) ----------------------------------------------
   // dias = dias da semana ABERTOS (0=Dom, 1=Seg, ... 6=Sáb).
-  // horarios = início de cada janela de atendimento (grade de 40 min).
+  // horarios AGORA vive por PROFISSIONAL+UNIDADE (ver DEFAULT_CABELEIREIROS) —
+  // o dono controla livremente cada agenda, sem grade automática de duração.
+  // GRADE_PADRAO = seed inicial de toda combinação unidade+profissional nova.
   var GRADE_PADRAO = [
-    "09:00", "09:40", "10:20", "11:00", "11:40",
-    "13:00", "13:40", "14:20", "15:00", "15:40",
-    "16:20", "17:00", "17:40", "18:20", "19:00"
+    "08:00", "09:00", "10:00", "11:00",
+    "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
   ];
   // emBreve = agendamento AINDA não ativo na unidade (o dono liga/desliga no
   // painel). Padrão editável: Sarapuí inicia "em breve" (ainda não trabalham
@@ -1373,7 +1374,6 @@ body {
       nome: "Centro – Sarapuí-SP",
       endereco: "",
       dias: [2, 3, 4, 5, 6],           // Ter a Sáb
-      horarios: GRADE_PADRAO.slice(),
       emBreve: true                    // agendamento ainda não aberto (padrão)
     },
     {
@@ -1381,29 +1381,30 @@ body {
       nome: "Cercado",
       endereco: "",
       dias: [3, 4, 5, 6],              // Qua a Sáb
-      horarios: GRADE_PADRAO.slice(),
       emBreve: false                   // agendamento ativo (padrão)
     }
   ];
 
   // ---- CABELEIREIROS ------------------------------------------------------
   // SEM descrições (só nomes). Agenda INDEPENDENTE por cabeleireiro:
-  // unidades[unidadeId].dias = dias que ELE atende NAQUELA unidade.
+  // unidades[unidadeId].dias = dias que ELE atende NAQUELA unidade;
+  // unidades[unidadeId].horarios = horários de início que ELE oferece NAQUELA
+  // unidade — lista própria, o dono adiciona/remove/edita livremente no painel.
   var DEFAULT_CABELEIREIROS = [
     {
       id: "erick",
       nome: "Erick Garcia",
       unidades: {
-        sarapui: { dias: [2, 3, 4, 5, 6] },
-        cerrado: { dias: [3, 5] }
+        sarapui: { dias: [2, 3, 4, 5, 6], horarios: GRADE_PADRAO.slice() },
+        cerrado: { dias: [3, 5],          horarios: GRADE_PADRAO.slice() }
       }
     },
     {
       id: "nene",
       nome: "Nene do Corte",
       unidades: {
-        sarapui: { dias: [4, 5, 6] },
-        cerrado: { dias: [3, 4, 6] }
+        sarapui: { dias: [4, 5, 6],       horarios: GRADE_PADRAO.slice() },
+        cerrado: { dias: [3, 4, 6],       horarios: GRADE_PADRAO.slice() }
       }
     }
   ];
@@ -1713,7 +1714,11 @@ body {
     weekdayOfISO: weekdayOfISO,
     formatDataBR: formatDataBR,
     DIAS_SEMANA: DIAS_SEMANA,
-    DIAS_SEMANA_LONGO: DIAS_SEMANA_LONGO
+    DIAS_SEMANA_LONGO: DIAS_SEMANA_LONGO,
+    // Seed padrão de horários p/ toda combinação unidade+profissional nova
+    // (booking.js usa como fallback se a lista estiver ausente; admin.js usa
+    // p/ pré-preencher o editor quando o profissional ainda não tem lista).
+    gradePadrao: GRADE_PADRAO.slice()
   };
 })();
 
@@ -2461,6 +2466,20 @@ body {
     return u.dias.filter(function (d) { return diasCab.indexOf(d) !== -1; });
   }
 
+  // Horários (lista de início) do PROFISSIONAL nesta UNIDADE — lista própria e
+  // independente, editada pelo dono no painel. Array ausente (profissional sem
+  // configuração ainda) cai no seed padrão; array presente e VAZIO (dono
+  // removeu todos) é respeitado como "sem horários" (sem fallback).
+  function horariosEfetivos(c, unidadeId) {
+    var cu = c && c.unidades && c.unidades[unidadeId];
+    if (!cu || !Array.isArray(cu.horarios)) return B.gradePadrao.slice();
+    // Ordena defensivamente: fimExpediente assume que o ÚLTIMO item é o mais
+    // tardio. O dono sempre grava ordenado (parseHorarios), mas um registro
+    // sincronizado de outro aparelho/versão poderia, em tese, chegar fora de
+    // ordem — não arrisca o cálculo do fim de expediente.
+    return cu.horarios.slice().sort(function (a, b) { return B.hmToMin(a) - B.hmToMin(b); });
+  }
+
   // Próximos dias disponíveis (dentro da janela) para essa combinação.
   function diasDisponiveis(limit) {
     var dias = diasEfetivos();
@@ -2596,16 +2615,20 @@ body {
   function renderSlots() {
     if (!state.data) return '<p class="wz-hint">Escolha um dia para ver os horários.</p>';
     var u = unidade(), c = cabeleireiro();
+    var horarios = horariosEfetivos(c, u.id);
+    if (!horarios.length) {
+      return '<p class="wz-empty">Nenhum horário cadastrado para ' + B.esc(c.nome) + ' nesta unidade. Fale com a gente no WhatsApp.</p>';
+    }
     var dur = duracaoTotal();
     var starts = Store.startMap(state.data, c.id);
     var isToday = state.data === B.todayISO();
     var agoraMin = B.hmToMin(B.nowHHMM());
     // Fim do expediente: fim da última janela ofertada + a folga base.
-    var fimExpediente = u.horarios.length
-      ? B.hmToMin(u.horarios[u.horarios.length - 1]) + B.config.folgaSlot
+    var fimExpediente = horarios.length
+      ? B.hmToMin(horarios[horarios.length - 1]) + B.config.folgaSlot
       : 24 * 60;
 
-    var slots = u.horarios.map(function (h) {
+    var slots = horarios.map(function (h) {
       var min = B.hmToMin(h);
       var appt = starts[h];
       if (appt) {
@@ -3885,7 +3908,7 @@ body {
     var cabs = B.data.getCabeleireiros();
 
     els.content.innerHTML =
-      '<div class="admin-crud__head"><p class="muted">Dias e horários de cada unidade, e a disponibilidade de cada profissional. Marque <strong>"em breve"</strong> na unidade onde o agendamento ainda não está aberto.</p></div>' +
+      '<div class="admin-crud__head"><p class="muted">Dias de cada unidade e, para cada profissional, os horários que ele atende em cada unidade. Marque <strong>"em breve"</strong> na unidade onde o agendamento ainda não está aberto.</p></div>' +
 
       '<h3 class="admin-subtitle">Unidades</h3>' +
       '<div class="crud-list">' + unidades.map(function (u) {
@@ -3893,7 +3916,7 @@ body {
           '<div class="crud-row' + (u.emBreve ? ' crud-row--off' : '') + '">' +
             '<div class="crud-row__main"><strong>' + B.esc(u.nome) + '</strong>' +
               (u.emBreve ? ' <span class="tag-off">EM BREVE</span>' : '') +
-              '<span class="crud-row__meta">' + diasResumo(u.dias) + ' · ' + (u.horarios || []).length + ' horários</span></div>' +
+              '<span class="crud-row__meta">' + diasResumo(u.dias) + '</span></div>' +
             '<div class="crud-row__actions">' +
               '<button type="button" class="btn btn--ghost btn--small" data-toggleuni="' + B.esc(u.id) + '">' + (u.emBreve ? 'Reabrir agendamento' : 'Marcar "em breve"') + '</button>' +
               '<button type="button" class="btn btn--ghost btn--small" data-edituni="' + B.esc(u.id) + '">Editar</button></div>' +
@@ -3906,7 +3929,8 @@ body {
         var resumo = unidades.map(function (u) {
           var cu = c.unidades && c.unidades[u.id];
           if (!cu || !cu.dias || !cu.dias.length) return null;
-          return u.nome + " (" + diasResumo(cu.dias) + ")";
+          var nHor = Array.isArray(cu.horarios) ? cu.horarios.length : B.gradePadrao.length;
+          return u.nome + " (" + diasResumo(cu.dias) + " · " + nHor + " horários)";
         }).filter(Boolean).join(" · ") || "sem agenda";
         return (
           '<div class="crud-row">' +
@@ -3962,8 +3986,7 @@ body {
         field("uni-nome", "Nome", "text", u.nome) +
         field("uni-end", "Endereço", "text", u.endereco || "") +
         '<label class="field__label">Dias abertos</label>' + diasCheckboxes("uni-dias", u.dias) +
-        '<div class="field" style="margin-top:var(--space-4);"><label class="field__label" for="uni-hor">Horários (um por linha ou separados por espaço)</label>' +
-          '<textarea class="control" id="uni-hor" rows="3">' + B.esc((u.horarios || []).join(" ")) + '</textarea></div>' +
+        '<p class="wz-hint" style="margin-top:var(--space-4);">Os horários de atendimento são configurados por profissional — edite em "Profissionais".</p>' +
         '<label class="check" style="margin-top:var(--space-4);"><input type="checkbox" id="uni-breve"' + (u.emBreve ? ' checked' : '') + '> Marcar como "em breve" (agendamento ainda não disponível nesta unidade)</label>',
       footerHTML: modalFooter(),
       onMount: function (api) {
@@ -3973,7 +3996,6 @@ body {
           t.nome = val("uni-nome") || t.nome;
           t.endereco = val("uni-end");
           t.dias = readDias("uni-dias");
-          t.horarios = parseHorarios(val("uni-hor"));
           t.emBreve = document.getElementById("uni-breve").checked;
           if (!B.data.saveUnidades(list)) { UI.showToast("Não foi possível salvar (armazenamento cheio?)."); return false; }
           UI.showToast("Unidade salva.");
@@ -4004,15 +4026,22 @@ body {
     var c = B.byId(cabs, id);
     var unidades = B.data.getUnidades();
     var uniBlocks = unidades.map(function (u) {
-      var cu = (c.unidades && c.unidades[u.id]) || { dias: [] };
+      var cu = (c.unidades && c.unidades[u.id]) || {};
+      var dias = cu.dias || [];
+      // Sem lista própria ainda → pré-preenche com o seed padrão (o dono edita
+      // livremente a partir daí; só grava ao salvar o modal).
+      var horarios = Array.isArray(cu.horarios) ? cu.horarios : B.gradePadrao.slice();
       return '<div class="uni-block"><p class="field__label">' + B.esc(u.nome) + '</p>' +
-             diasCheckboxes("cab-dias-" + u.id, cu.dias) + '</div>';
+             diasCheckboxes("cab-dias-" + u.id, dias) +
+             '<div class="field" style="margin-top:var(--space-2);"><label class="field__label" for="cab-hor-' + u.id + '">Horários nesta unidade (separados por espaço, ex.: 08:00 09:00 10:00)</label>' +
+               '<textarea class="control" id="cab-hor-' + u.id + '" rows="2">' + B.esc(horarios.join(" ")) + '</textarea></div>' +
+             '</div>';
     }).join("");
     UI.openModal({
       title: "Editar profissional",
       bodyHTML:
         field("cab-nome", "Nome", "text", c.nome) +
-        '<p class="wz-hint">Marque os dias que ele atende em cada unidade (agenda independente).</p>' +
+        '<p class="wz-hint">Para cada unidade: dias que ele atende e os horários de início que oferece (agenda independente). Deixe o campo de horários vazio para não oferecer nenhum horário ali.</p>' +
         uniBlocks,
       footerHTML: modalFooter(),
       onMount: function (api) {
@@ -4022,7 +4051,10 @@ body {
           t.nome = val("cab-nome") || t.nome;
           t.unidades = t.unidades || {};
           unidades.forEach(function (u) {
-            t.unidades[u.id] = { dias: readDias("cab-dias-" + u.id) };
+            t.unidades[u.id] = {
+              dias: readDias("cab-dias-" + u.id),
+              horarios: parseHorarios(val("cab-hor-" + u.id))
+            };
           });
           if (!B.data.saveCabeleireiros(list)) { UI.showToast("Não foi possível salvar (armazenamento cheio?)."); return false; }
           UI.showToast("Profissional salvo.");
